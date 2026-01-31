@@ -114,11 +114,9 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		offset = 0
 	}
 
-	page := offset / limit
-
-	reviews, err := s.cache.GetReviewsList(ctx, productID, page)
+	reviews, err := s.cache.GetReviewsList(ctx, productID, limit, offset)
 	if err == nil {
-		s.logger.Debugf("Cache hit for product %s reviews page %d", productID, page)
+		s.logger.Debugf("Cache hit for product %s reviews (limit=%d, offset=%d)", productID, limit, offset)
 		total, err := s.repo.CountByProductID(ctx, productID)
 		if err != nil {
 			s.logger.Error("Failed to count reviews", err)
@@ -127,7 +125,7 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		return reviews, total, nil
 	}
 
-	s.logger.Debugf("Cache miss for product %s reviews page %d", productID, page)
+	s.logger.Debugf("Cache miss for product %s reviews (limit=%d, offset=%d)", productID, limit, offset)
 	reviews, err = s.repo.GetByProductID(ctx, productID, limit, offset)
 	if err != nil {
 		s.logger.Error("Failed to get reviews by product ID", err)
@@ -140,8 +138,8 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		return nil, 0, err
 	}
 
-	if err := s.cache.SetReviewsList(ctx, productID, page, reviews); err != nil {
-		s.logger.Warnf("Failed to cache reviews for product %s page %d: %v", productID, page, err)
+	if err := s.cache.SetReviewsList(ctx, productID, limit, offset, reviews); err != nil {
+		s.logger.Warnf("Failed to cache reviews for product %s (limit=%d, offset=%d): %v", productID, limit, offset, err)
 	}
 
 	return reviews, total, nil

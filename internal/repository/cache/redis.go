@@ -61,13 +61,13 @@ func (c *RedisCache) InvalidateProductRating(ctx context.Context, productID uuid
 
 // Product reviews list cache keys and methods
 
-func (c *RedisCache) reviewsListKey(productID uuid.UUID, page int) string {
-	return fmt.Sprintf("product:%s:reviews:page:%d", productID.String(), page)
+func (c *RedisCache) reviewsListKey(productID uuid.UUID, limit, offset int) string {
+	return fmt.Sprintf("product:%s:reviews:limit:%d:offset:%d", productID.String(), limit, offset)
 }
 
 // GetReviewsList retrieves cached reviews list for a product
-func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, page int) ([]*domain.Review, error) {
-	key := c.reviewsListKey(productID, page)
+func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
+	key := c.reviewsListKey(productID, limit, offset)
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -85,8 +85,8 @@ func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, pa
 }
 
 // SetReviewsList stores reviews list in cache
-func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, page int, reviews []*domain.Review) error {
-	key := c.reviewsListKey(productID, page)
+func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error {
+	key := c.reviewsListKey(productID, limit, offset)
 	data, err := json.Marshal(reviews)
 	if err != nil {
 		return err
@@ -96,8 +96,8 @@ func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, pa
 
 // InvalidateReviewsList removes all cached review pages for a product
 func (c *RedisCache) InvalidateReviewsList(ctx context.Context, productID uuid.UUID) error {
-	// We don't know how many cached pages exist, so scan for all matching keys
-	pattern := fmt.Sprintf("product:%s:reviews:page:*", productID.String())
+	// Scan for all review list cache entries for this product (all limit/offset combinations)
+	pattern := fmt.Sprintf("product:%s:reviews:limit:*", productID.String())
 
 	iter := c.client.Scan(ctx, 0, pattern, 0).Iterator()
 	for iter.Next(ctx) {
