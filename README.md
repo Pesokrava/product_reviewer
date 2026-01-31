@@ -77,35 +77,49 @@ curl http://localhost:8080/health
 
 ### Local Development
 
-1. Copy environment variables:
+**Quick Start:**
 
 ```bash
-cp .env.example .env
+make dev
 ```
 
-2. Start infrastructure services:
+This single command:
+- Creates `.env` from `.env.example` if needed
+- Starts infrastructure services (PostgreSQL, Redis, NATS)
+- Creates database and runs migrations
+- Builds and runs the API locally
+
+**Step-by-Step (if you prefer manual control):**
+
+1. Start infrastructure services:
 
 ```bash
-docker-compose up -d postgres redis nats
+make dev-infra
 ```
 
-3. Run migrations:
+2. Setup database and run migrations:
 
 ```bash
-make migrate-up
+make dev-db-setup
 ```
 
-4. Build and run the API:
+3. Build and run the API:
 
 ```bash
 make build
 ./bin/api
 ```
 
-5. Run the notifier service (in another terminal):
+4. Run the notifier service (in another terminal):
 
 ```bash
 ./bin/notifier
+```
+
+**Stop infrastructure services:**
+
+```bash
+make dev-down
 ```
 
 ## API Documentation
@@ -440,15 +454,29 @@ A PostgreSQL trigger automatically updates the product's average_rating whenever
 
 ## Makefile Commands
 
+**Development:**
+- `make dev` - Start API locally (runs dev-infra, dev-db-setup, then API)
+- `make dev-infra` - Start infrastructure services only (postgres, redis, nats)
+- `make dev-db-setup` - Setup database and run migrations
+- `make dev-down` - Stop infrastructure services
+
+**Build & Test:**
 - `make build` - Build API and notifier services
 - `make test` - Run unit tests
 - `make test-integration` - Run integration tests
 - `make lint` - Run linter
+- `make swagger` - Generate Swagger documentation
+
+**Docker:**
 - `make docker-build` - Build Docker images
 - `make docker-up` - Start all services
 - `make docker-down` - Stop all services
+
+**Database:**
 - `make migrate-up` - Run database migrations
 - `make migrate-down` - Rollback migrations
+
+**Misc:**
 - `make tidy` - Run go mod tidy
 - `make clean` - Clean build artifacts
 

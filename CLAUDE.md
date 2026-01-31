@@ -4,6 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Essential Development Commands
 
+### Quick Start (Development Server)
+```bash
+make dev                      # One command to start everything for local development
+                             # - Starts infrastructure (postgres, redis, nats)
+                             # - Creates database and runs migrations
+                             # - Builds and runs API locally
+                             # API at http://localhost:8080
+                             # Swagger at http://localhost:8080/swagger/index.html
+
+make dev-down                 # Stop infrastructure services
+```
+
+### Step-by-Step Development
+```bash
+make dev-infra               # Start infrastructure services only
+make dev-db-setup            # Create database and run migrations
+make build && ./bin/api      # Build and run API manually
+```
+
 ### Building
 ```bash
 make build                    # Build both API and notifier services to bin/
@@ -48,14 +67,14 @@ make migrate-down            # Rollback last migration
 # Requires docker services to be running
 ```
 
-### Local Development Workflow
-```bash
-cp .env.example .env                    # Setup environment variables
-docker-compose up -d postgres redis nats  # Start infrastructure only
-make migrate-up                         # Apply migrations
-go run cmd/api/main.go                  # Run API locally
-go run cmd/notifier/main.go            # Run notifier in separate terminal
-```
+### Port Configuration
+
+External ports are configurable via `.env` to avoid conflicts:
+- PostgreSQL: `DB_PORT_EXTERNAL` (default: 5434)
+- Redis: `REDIS_PORT_EXTERNAL` (default: 6379)
+- NATS: `NATS_PORT_EXTERNAL` (default: 4222)
+
+The application connects using `DB_PORT`, `REDIS_PORT`, etc. in `.env`.
 
 ## Architecture Overview
 

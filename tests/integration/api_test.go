@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package integration
@@ -15,9 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Pesokrava/product_reviewer/internal/config"
+	"github.com/Pesokrava/product_reviewer/internal/delivery/events"
 	httpDelivery "github.com/Pesokrava/product_reviewer/internal/delivery/http"
 	"github.com/Pesokrava/product_reviewer/internal/delivery/http/handler"
-	"github.com/Pesokrava/product_reviewer/internal/delivery/events"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/cache"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/database"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"

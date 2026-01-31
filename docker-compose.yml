@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: product_reviews
     ports:
-      - "5432:5432"
+      - "${DB_PORT_EXTERNAL:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: product-reviews-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -40,8 +40,8 @@ services:
     image: nats:2.10-alpine
     container_name: product-reviews-nats
     ports:
-      - "4222:4222"
-      - "8222:8222"
+      - "${NATS_PORT_EXTERNAL:-4222}:4222"
+      - "${NATS_MONITOR_PORT_EXTERNAL:-8222}:8222"
     command: "-js -m 8222"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
