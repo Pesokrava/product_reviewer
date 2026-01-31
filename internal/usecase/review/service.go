@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -70,7 +71,8 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 
 	// Stale cache would show incorrect ratings and review lists
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
+		s.logger.Error("Failed to invalidate cache", err)
+		return fmt.Errorf("cache invalidation failed: %w", err)
 	}
 
 	s.publishEvent(ctx, "review.created", review)
@@ -165,7 +167,8 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 	review.ProductID = existingReview.ProductID
 
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
+		s.logger.Error("Failed to invalidate cache", err)
+		return fmt.Errorf("cache invalidation failed: %w", err)
 	}
 
 	s.publishEvent(ctx, "review.updated", review)
@@ -197,7 +200,8 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
+		s.logger.Error("Failed to invalidate cache", err)
+		return fmt.Errorf("cache invalidation failed: %w", err)
 	}
 
 	s.publishEvent(ctx, "review.deleted", review)
@@ -226,9 +230,9 @@ func (s *Service) publishEvent(ctx context.Context, eventType string, review *do
 	}
 
 	// Publish in background to avoid blocking
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "reviews.events", data); err != nil {
+	go func(pubCtx context.Context) {
+		if err := s.publisher.Publish(pubCtx, "reviews.events", data); err != nil {
 			s.logger.Errorf(err, "Failed to publish event for review %s", review.ID)
 		}
-	}()
+	}(ctx)
 }

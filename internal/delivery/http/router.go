@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/Pesokrava/product_reviewer/internal/config"
 	"github.com/Pesokrava/product_reviewer/internal/delivery/http/handler"
 	"github.com/Pesokrava/product_reviewer/internal/delivery/http/middleware"
 	"github.com/Pesokrava/product_reviewer/internal/delivery/http/response"
@@ -18,18 +19,21 @@ type Router struct {
 	productHandler *handler.ProductHandler
 	reviewHandler  *handler.ReviewHandler
 	logger         *logger.Logger
+	cfg            *config.Config
 }
 
 // NewRouter creates a new HTTP router
 func NewRouter(
 	productHandler *handler.ProductHandler,
 	reviewHandler *handler.ReviewHandler,
+	cfg *config.Config,
 	log *logger.Logger,
 ) *Router {
 	return &Router{
 		productHandler: productHandler,
 		reviewHandler:  reviewHandler,
 		logger:         log,
+		cfg:            cfg,
 	}
 }
 
@@ -40,7 +44,7 @@ func (rt *Router) Setup() http.Handler {
 	r.Use(middleware.Recovery(rt.logger))
 	r.Use(middleware.Logger(rt.logger))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   rt.cfg.Server.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},

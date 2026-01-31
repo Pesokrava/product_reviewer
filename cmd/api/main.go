@@ -99,7 +99,7 @@ func main() {
 	productHandler := handler.NewProductHandler(productService, appLogger)
 	reviewHandler := handler.NewReviewHandler(reviewService, appLogger)
 
-	router := httpDelivery.NewRouter(productHandler, reviewHandler, appLogger)
+	router := httpDelivery.NewRouter(productHandler, reviewHandler, cfg, appLogger)
 	httpHandler := router.Setup()
 
 	server := &http.Server{

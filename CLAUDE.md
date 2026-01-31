@@ -336,7 +336,7 @@ Annotations format:
 
 1. **Don't manually calculate average_rating** - The database trigger does this atomically
 2. **Always invalidate cache after write operations** - Stale cache causes inconsistencies
-3. **Use mutex in review service** - Prevents race conditions in concurrent scenarios
+3. **Database handles concurrency** - No service-level mutexes needed; PostgreSQL MVCC + optimistic locking handle concurrent access safely
 4. **Product updates use optimistic locking** - Check `version` field to prevent conflicts
 5. **Soft deletes** - Use `deleted_at` timestamp, don't physically delete records
 6. **Event publishing is async** - Don't rely on events for critical business logic
@@ -344,6 +344,7 @@ Annotations format:
 8. **UUID validation** - Use `request.GetUUIDParam()` helper to parse and validate UUIDs
 9. **Pagination** - Default limit is 20, max is 100 (enforced in handlers)
 10. **Migrations require running services** - Start docker-compose before running migrations
+11. **Product version conflicts** - Product.version increments on review changes (database trigger). Product updates can fail with ErrConflict due to concurrent review activity, not just concurrent product updates. This is by design - the product DID change (rating changed).
 
 ## Debugging
 
