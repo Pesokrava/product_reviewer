@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+bin/
+dist/
+*.exe
+
+# Tests
+coverage.out
+coverage.html
+*.test
+
+# Documentation
+README.md
+*.md
+
+# Environment
+.env
+.env.local
+.env.example
+
+# Development
+tmp/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,257 @@
+package review
+
+import (
+	"context"
+	"encoding/json"
+	"sync"
+	"time"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+
+	"github.com/Pesokrava/product_reviewer/internal/domain"
+	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"
+	"github.com/Pesokrava/product_reviewer/internal/repository/cache"
+)
+
+// EventPublisher defines the interface for publishing events
+type EventPublisher interface {
+	Publish(ctx context.Context, subject string, data []byte) error
+}
+
+// ReviewEvent represents an event related to a review
+type ReviewEvent struct {
+	EventType string         `json:"event_type"`
+	Timestamp time.Time      `json:"timestamp"`
+	ProductID uuid.UUID      `json:"product_id"`
+	Review    *domain.Review `json:"review"`
+}
+
+// Service handles review business logic with caching and event publishing
+type Service struct {
+	repo      domain.ReviewRepository
+	cache     *cache.RedisCache
+	publisher EventPublisher
+	validate  *validator.Validate
+	logger    *logger.Logger
+	mu        sync.RWMutex
+}
+
+// NewService creates a new review service
+func NewService(
+	repo domain.ReviewRepository,
+	cache *cache.RedisCache,
+	publisher EventPublisher,
+	log *logger.Logger,
+) *Service {
+	return &Service{
+		repo:      repo,
+		cache:     cache,
+		publisher: publisher,
+		validate:  validator.New(),
+		logger:    log,
+	}
+}
+
+// Create creates a new review
+func (s *Service) Create(ctx context.Context, review *domain.Review) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Validate input
+	if err := s.validate.Struct(review); err != nil {
+		s.logger.Error("Review validation failed", err)
+		return domain.ErrInvalidInput
+	}
+
+	// Create review
+	if err := s.repo.Create(ctx, review); err != nil {
+		s.logger.Error("Failed to create review", err)
+		return err
+	}
+
+	// Invalidate cache
+	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
+		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
+	}
+
+	// Publish event
+	s.publishEvent(ctx, "review.created", review)
+
+	s.logger.WithFields(map[string]interface{}{
+		"review_id":  review.ID,
+		"product_id": review.ProductID,
+		"rating":     review.Rating,
+	}).Info("Review created successfully")
+
+	return nil
+}
+
+// GetByID retrieves a review by ID
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	review, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == domain.ErrNotFound {
+			s.logger.Debugf("Review not found: %s", id)
+		} else {
+			s.logger.Error("Failed to get review", err)
+		}
+		return nil, err
+	}
+
+	return review, nil
+}
+
+// GetByProductID retrieves reviews for a product with caching
+func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Validate pagination parameters
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Calculate page number
+	page := offset / limit
+
+	// Try cache first
+	reviews, err := s.cache.GetReviewsList(ctx, productID, page)
+	if err == nil {
+		s.logger.Debugf("Cache hit for product %s reviews page %d", productID, page)
+		total, err := s.repo.CountByProductID(ctx, productID)
+		if err != nil {
+			s.logger.Error("Failed to count reviews", err)
+			return nil, 0, err
+		}
+		return reviews, total, nil
+	}
+
+	// Cache miss - fetch from database
+	s.logger.Debugf("Cache miss for product %s reviews page %d", productID, page)
+	reviews, err = s.repo.GetByProductID(ctx, productID, limit, offset)
+	if err != nil {
+		s.logger.Error("Failed to get reviews by product ID", err)
+		return nil, 0, err
+	}
+
+	total, err := s.repo.CountByProductID(ctx, productID)
+	if err != nil {
+		s.logger.Error("Failed to count reviews", err)
+		return nil, 0, err
+	}
+
+	// Store in cache
+	if err := s.cache.SetReviewsList(ctx, productID, page, reviews); err != nil {
+		s.logger.Warnf("Failed to cache reviews for product %s page %d: %v", productID, page, err)
+	}
+
+	return reviews, total, nil
+}
+
+// Update updates an existing review
+func (s *Service) Update(ctx context.Context, review *domain.Review) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Validate input
+	if err := s.validate.Struct(review); err != nil {
+		s.logger.Error("Review validation failed", err)
+		return domain.ErrInvalidInput
+	}
+
+	// Get existing review to check product ID
+	existingReview, err := s.repo.GetByID(ctx, review.ID)
+	if err != nil {
+		s.logger.Error("Failed to get existing review", err)
+		return err
+	}
+
+	// Update review
+	if err := s.repo.Update(ctx, review); err != nil {
+		s.logger.Error("Failed to update review", err)
+		return err
+	}
+
+	// Use the product ID from existing review
+	review.ProductID = existingReview.ProductID
+
+	// Invalidate cache
+	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
+		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
+	}
+
+	// Publish event
+	s.publishEvent(ctx, "review.updated", review)
+
+	s.logger.WithFields(map[string]interface{}{
+		"review_id":  review.ID,
+		"product_id": review.ProductID,
+		"rating":     review.Rating,
+	}).Info("Review updated successfully")
+
+	return nil
+}
+
+// Delete soft-deletes a review
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Get review to know which product cache to invalidate
+	review, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		s.logger.Error("Failed to get review for deletion", err)
+		return err
+	}
+
+	// Delete review
+	if err := s.repo.Delete(ctx, id); err != nil {
+		s.logger.Error("Failed to delete review", err)
+		return err
+	}
+
+	// Invalidate cache
+	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
+		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
+	}
+
+	// Publish event
+	s.publishEvent(ctx, "review.deleted", review)
+
+	s.logger.WithFields(map[string]interface{}{
+		"review_id":  id,
+		"product_id": review.ProductID,
+	}).Info("Review deleted successfully")
+
+	return nil
+}
+
+// publishEvent publishes a review event (non-blocking)
+func (s *Service) publishEvent(ctx context.Context, eventType string, review *domain.Review) {
+	event := ReviewEvent{
+		EventType: eventType,
+		Timestamp: time.Now(),
+		ProductID: review.ProductID,
+		Review:    review,
+	}
+
+	data, err := json.Marshal(event)
+	if err != nil {
+		s.logger.Errorf(err, "Failed to marshal event for review %s", review.ID)
+		return
+	}
+
+	// Publish in background to avoid blocking
+	go func() {
+		if err := s.publisher.Publish(context.Background(), "reviews.events", data); err != nil {
+			s.logger.Errorf(err, "Failed to publish event for review %s", review.ID)
+		}
+	}()
+}
