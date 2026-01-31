@@ -125,7 +125,7 @@ This codebase follows **Clean Architecture** with strict dependency rules:
    - Business logic services: `product.Service`, `review.Service`
    - Depends on: domain interfaces, validator, logger
    - Implements: input validation, caching coordination, event publishing
-   - Thread-safe with sync.RWMutex for concurrent operations
+   - Thread-safe: Concurrency handled by database (MVCC, optimistic locking)
 
 3. **Repository Layer** (`internal/repository/`):
    - Implements domain repository interfaces
@@ -143,7 +143,7 @@ This codebase follows **Clean Architecture** with strict dependency rules:
 
 #### Concurrency-Safe Rating Calculation
 
-The system uses a **three-layer approach** to ensure average_rating is always correct:
+The system uses a **two-layer approach** to ensure average_rating is always correct:
 
 1. **Database Trigger (Primary Safety Mechanism)**:
    - PostgreSQL trigger in `migrations/000002_create_reviews_table.up.sql`
@@ -151,21 +151,18 @@ The system uses a **three-layer approach** to ensure average_rating is always co
    - Runs atomically within transaction context
    - Updates `version` field for optimistic locking
    - This is the **source of truth** - application code relies on this trigger
+   - PostgreSQL MVCC handles concurrent access safely without application-level locks
 
-2. **Application Mutex (Secondary)**:
-   - `sync.RWMutex` in `internal/usecase/review/service.go`
-   - Protects critical sections during review operations
-   - Prevents race conditions in cache invalidation
-
-3. **Cache Invalidation (Consistency)**:
+2. **Cache Invalidation (Consistency)**:
    - On any review write operation, invalidate ALL cache for that product
    - Pattern: `s.cache.InvalidateAllProductCache(ctx, productID)`
    - Clears both rating cache and all paginated review lists
+   - Redis operations (Del, SMembers, Unlink) are atomic
 
 **IMPORTANT**: When adding new review operations, always:
-- Wrap in mutex lock/unlock
-- Call `InvalidateAllProductCache` after DB write
+- Call `InvalidateAllProductCache` after DB write (return error if it fails)
 - Trust the database trigger for rating calculation
+- No application-level locking needed - database handles concurrency
 
 #### Caching Strategy
 

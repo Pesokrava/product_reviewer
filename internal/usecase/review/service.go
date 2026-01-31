@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -35,7 +34,6 @@ type Service struct {
 	publisher EventPublisher
 	validate  *validator.Validate
 	logger    *logger.Logger
-	mu        sync.RWMutex
 }
 
 // NewService creates a new review service
@@ -56,9 +54,6 @@ func NewService(
 
 // Create creates a new review
 func (s *Service) Create(ctx context.Context, review *domain.Review) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := s.validate.Struct(review); err != nil {
 		s.logger.Error("Review validation failed", err)
 		return domain.ErrInvalidInput
@@ -143,9 +138,6 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 
 // Update updates an existing review
 func (s *Service) Update(ctx context.Context, review *domain.Review) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := s.validate.Struct(review); err != nil {
 		s.logger.Error("Review validation failed", err)
 		return domain.ErrInvalidInput
@@ -184,9 +176,6 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 
 // Delete soft-deletes a review
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// Product ID is needed for cache invalidation but only stored in review record
 	review, err := s.repo.GetByID(ctx, id)
 	if err != nil {
