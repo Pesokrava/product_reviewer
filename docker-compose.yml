@@ -73,8 +73,8 @@ services:
       - REDIS_PASSWORD=
       - REDIS_DB=0
       - NATS_URL=nats://nats:4222
-      - CACHE_TTL_PRODUCT_RATING=300
-      - CACHE_TTL_REVIEWS_LIST=120
+      - CACHE_TTL_PRODUCT_RATING=300s
+      - CACHE_TTL_REVIEWS_LIST=120s
     depends_on:
       postgres:
         condition: service_healthy
