@@ -86,9 +86,6 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 
 // GetByID retrieves a review by ID
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	review, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == domain.ErrNotFound {
@@ -104,9 +101,6 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, er
 
 // GetByProductID retrieves reviews for a product with caching
 func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}

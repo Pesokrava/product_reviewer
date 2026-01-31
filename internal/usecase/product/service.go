@@ -2,7 +2,6 @@ package product
 
 import (
 	"context"
-	"sync"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -16,7 +15,6 @@ type Service struct {
 	repo     domain.ProductRepository
 	validate *validator.Validate
 	logger   *logger.Logger
-	mu       sync.RWMutex
 }
 
 // NewService creates a new product service
@@ -30,9 +28,6 @@ func NewService(repo domain.ProductRepository, log *logger.Logger) *Service {
 
 // Create creates a new product
 func (s *Service) Create(ctx context.Context, product *domain.Product) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := s.validate.Struct(product); err != nil {
 		s.logger.Error("Product validation failed", err)
 		return domain.ErrInvalidInput
@@ -53,9 +48,6 @@ func (s *Service) Create(ctx context.Context, product *domain.Product) error {
 
 // GetByID retrieves a product by ID
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	product, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == domain.ErrNotFound {
@@ -71,9 +63,6 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, e
 
 // List retrieves a paginated list of products
 func (s *Service) List(ctx context.Context, limit, offset int) ([]*domain.Product, int, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -98,9 +87,6 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]*domain.Produc
 
 // Update updates an existing product
 func (s *Service) Update(ctx context.Context, product *domain.Product) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := s.validate.Struct(product); err != nil {
 		s.logger.Error("Product validation failed", err)
 		return domain.ErrInvalidInput
@@ -121,9 +107,6 @@ func (s *Service) Update(ctx context.Context, product *domain.Product) error {
 
 // Delete soft-deletes a product
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := s.repo.Delete(ctx, id); err != nil {
 		s.logger.Error("Failed to delete product", err)
 		return err
