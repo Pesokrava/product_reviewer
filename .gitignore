@@ -27,9 +27,11 @@ go.work
 # IDE
 .idea/
 .vscode/
+.nvim/
 *.swp
 *.swo
 *~
+nvim-setup.md
 
 # OS
 .DS_Store

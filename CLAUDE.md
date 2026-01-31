@@ -6,10 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Quick Start (Development Server)
 ```bash
-make dev                      # One command to start everything for local development
+make install-dev-tools        # One-time: Install Air (hot reload) and Delve (debugger)
+                             # Optional but recommended for development
+
+make dev                      # Start development server
                              # - Starts infrastructure (postgres, redis, nats)
                              # - Creates database and runs migrations
-                             # - Builds and runs API locally
+                             # - If Air+Delve installed: hot reload + debug on :2345
+                             # - If not installed: runs normally (fallback mode)
                              # API at http://localhost:8080
                              # Swagger at http://localhost:8080/swagger/index.html
 
@@ -20,8 +24,10 @@ make dev-down                 # Stop infrastructure services
 ```bash
 make dev-infra               # Start infrastructure services only
 make dev-db-setup            # Create database and run migrations
-make build && ./bin/api      # Build and run API manually
+make build && ./bin/api      # Build and run API manually (no hot reload)
 ```
+
+Note: `make dev` automatically handles infrastructure setup and chooses the best mode (hot reload if available, fallback otherwise).
 
 ### Building
 ```bash
@@ -75,6 +81,33 @@ External ports are configurable via `.env` to avoid conflicts:
 - NATS: `NATS_PORT_EXTERNAL` (default: 4222)
 
 The application connects using `DB_PORT`, `REDIS_PORT`, etc. in `.env`.
+
+### Hot Reload & Debugging (Optional)
+
+The development server can use **Air** for hot reload and **Delve** for debugging when available:
+
+**Setup** (optional but recommended):
+```bash
+make install-dev-tools        # Install Air and Delve
+```
+
+**Features** (when tools are installed):
+- Automatic rebuild on `.go` file changes
+- Debug server on port 2345 (Delve)
+- No need to restart after code changes
+- Compatible with any Delve-compatible debugger
+
+**Graceful Degradation**:
+- `make dev` automatically detects if Air/Delve are installed
+- If present: runs with hot reload + debug server
+- If not present: runs normally without these features
+- No need to change your workflow or commands
+
+**Workflow** (with tools installed):
+1. Start: `make dev`
+2. Connect your debugger to `localhost:2345`
+3. Set breakpoints and debug as usual
+4. Code changes auto-rebuild while debugging
 
 ## Architecture Overview
 

@@ -1,13 +1,15 @@
-.PHONY: help build test test-integration lint docker-build docker-up docker-down migrate-up migrate-down tidy clean swagger dev-infra dev-db-setup dev dev-down
+.PHONY: help build test test-integration lint docker-build docker-up docker-down migrate-up migrate-down tidy clean swagger dev-infra dev-db-setup dev dev-down dev-clean install-dev-tools
 
 help:
 	@echo "Available commands:"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev              - Start API locally (runs dev-infra, dev-db-setup, then API)"
+	@echo "  make dev              - Start API (with hot reload + debug if tools installed)"
 	@echo "  make dev-infra        - Start infrastructure services only (postgres, redis, nats)"
 	@echo "  make dev-db-setup     - Setup database and run migrations"
 	@echo "  make dev-down         - Stop infrastructure services"
+	@echo "  make dev-clean        - Stop services and remove all volumes (fresh start)"
+	@echo "  make install-dev-tools - Install Air and Delve for hot reload and debugging"
 	@echo ""
 	@echo "Build & Test:"
 	@echo "  make build            - Build the API and notifier services"
@@ -101,7 +103,20 @@ dev-infra:
 	fi
 	@docker-compose up -d postgres redis nats
 	@echo "Waiting for services to be healthy..."
-	@sleep 3
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		if docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then \
+			echo "PostgreSQL is ready!"; \
+			break; \
+		fi; \
+		echo "Waiting for PostgreSQL... ($$timeout seconds remaining)"; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
+	done; \
+	if [ $$timeout -le 0 ]; then \
+		echo "ERROR: PostgreSQL failed to start within 60 seconds"; \
+		exit 1; \
+	fi
 	@docker-compose ps
 	@echo ""
 	@echo "Infrastructure services started!"
@@ -111,25 +126,71 @@ dev-infra:
 
 dev-db-setup:
 	@echo "Setting up database..."
-	@DB_PORT=$$(grep DB_PORT_EXTERNAL .env | cut -d'=' -f2); \
-	docker-compose exec postgres psql -U postgres -c "SELECT 1 FROM pg_database WHERE datname = 'product_reviews'" | grep -q 1 || \
-	(echo "Creating database product_reviews..." && docker-compose exec postgres psql -U postgres -c "CREATE DATABASE product_reviews;")
+	@echo "Checking if database exists..."
+	@if docker-compose exec -T postgres psql -U postgres -lqt | cut -d \| -f 1 | grep -qw product_reviews; then \
+		echo "Database 'product_reviews' already exists"; \
+	else \
+		echo "Creating database 'product_reviews'..."; \
+		docker-compose exec -T postgres psql -U postgres -c "CREATE DATABASE product_reviews;"; \
+		echo "Database created successfully!"; \
+	fi
 	@echo "Running migrations..."
-	@docker-compose exec postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000001_create_products_table.up.sql > /dev/null 2>&1 || echo "Migration 1 already applied"
-	@docker-compose exec postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000002_create_reviews_table.up.sql > /dev/null 2>&1 || echo "Migration 2 already applied"
+	@docker-compose exec -T postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000001_create_products_table.up.sql > /dev/null 2>&1 || echo "Migration 1 already applied or failed"
+	@docker-compose exec -T postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000002_create_reviews_table.up.sql > /dev/null 2>&1 || echo "Migration 2 already applied or failed"
 	@echo "Database setup complete!"
+	@echo "Verifying database..."
+	@docker-compose exec -T postgres psql -U postgres -d product_reviews -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
 
-dev: dev-infra dev-db-setup build
+dev: dev-infra dev-db-setup
 	@echo ""
-	@echo "Starting API server in development mode..."
-	@echo "API will be available at http://localhost:8080"
-	@echo "Swagger docs at http://localhost:8080/swagger/index.html"
-	@echo ""
-	@echo "Press Ctrl+C to stop"
-	@echo ""
-	@./bin/api
+	@if command -v air > /dev/null 2>&1 && command -v dlv > /dev/null 2>&1; then \
+		echo "Starting API server with hot reload and debug server..."; \
+		echo ""; \
+		echo "  API:        http://localhost:8080"; \
+		echo "  Swagger:    http://localhost:8080/swagger/index.html"; \
+		echo "  Debug Port: localhost:2345 (Delve)"; \
+		echo ""; \
+		echo "Hot reload is enabled - changes will auto-rebuild"; \
+		echo "Connect your debugger to localhost:2345"; \
+		echo ""; \
+		echo "Press Ctrl+C to stop"; \
+		echo ""; \
+		set -a; . ./.env; set +a; air -c .air.toml; \
+	else \
+		echo "Air and/or Delve not found. Running without hot reload."; \
+		echo "For hot reload + debugging, install tools with: make install-dev-tools"; \
+		echo ""; \
+		echo "Starting API server..."; \
+		echo "API will be available at http://localhost:8080"; \
+		echo "Swagger docs at http://localhost:8080/swagger/index.html"; \
+		echo ""; \
+		echo "Press Ctrl+C to stop"; \
+		echo ""; \
+		$(MAKE) build; \
+		set -a; . ./.env; set +a; ./bin/api; \
+	fi
 
 dev-down:
 	@echo "Stopping infrastructure services..."
 	@docker-compose stop postgres redis nats
 	@echo "Infrastructure services stopped!"
+
+dev-clean:
+	@echo "Cleaning up all infrastructure services and volumes..."
+	@docker-compose down -v
+	@echo "All services stopped and volumes removed!"
+	@echo "Run 'make dev' to start fresh"
+
+install-dev-tools:
+	@echo "Installing development tools..."
+	@echo ""
+	@echo "Installing Air (hot reload)..."
+	@go install github.com/air-verse/air@latest
+	@echo "Installing Delve (debugger)..."
+	@go install github.com/go-delve/delve/cmd/dlv@latest
+	@echo ""
+	@echo "Development tools installed successfully!"
+	@echo ""
+	@echo "Verify installation:"
+	@which air && air -v || echo "  Air: NOT FOUND"
+	@which dlv && dlv version || echo "  Delve: NOT FOUND"
