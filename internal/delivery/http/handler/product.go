@@ -149,7 +149,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing product to preserve version
+	// Version field required for optimistic locking but not provided in update request
 	existingProduct, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		h.handleError(w, err)

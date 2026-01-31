@@ -37,7 +37,6 @@ func NewRouter(
 func (rt *Router) Setup() http.Handler {
 	r := chi.NewRouter()
 
-	// Global middleware
 	r.Use(middleware.Recovery(rt.logger))
 	r.Use(middleware.Logger(rt.logger))
 	r.Use(cors.Handler(cors.Options{
@@ -49,15 +48,10 @@ func (rt *Router) Setup() http.Handler {
 		MaxAge:           300,
 	}))
 
-	// Health check
 	r.Get("/health", rt.healthCheck)
-
-	// Swagger documentation
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
-	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// Product routes
 		r.Route("/products", func(r chi.Router) {
 			r.Post("/", rt.productHandler.Create)
 			r.Get("/", rt.productHandler.List)
@@ -67,7 +61,6 @@ func (rt *Router) Setup() http.Handler {
 			r.Get("/{id}/reviews", rt.reviewHandler.GetByProductID)
 		})
 
-		// Review routes
 		r.Route("/reviews", func(r chi.Router) {
 			r.Post("/", rt.reviewHandler.Create)
 			r.Put("/{id}", rt.reviewHandler.Update)

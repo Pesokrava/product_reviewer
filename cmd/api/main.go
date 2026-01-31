@@ -48,17 +48,14 @@ import (
 // @tag.description Review management endpoints
 
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize logger
 	appLogger := logger.New(cfg.Env)
 	appLogger.Info("Starting Product Reviews API...")
 
-	// Connect to PostgreSQL with retry
 	appLogger.Info("Connecting to PostgreSQL...")
 	db, err := database.WaitForDB(cfg, 10, 2*time.Second)
 	if err != nil {
@@ -67,7 +64,6 @@ func main() {
 	defer db.Close()
 	appLogger.Info("Connected to PostgreSQL successfully")
 
-	// Connect to Redis with retry
 	appLogger.Info("Connecting to Redis...")
 	redisClient, err := cache.WaitForRedis(cfg, 10, 2*time.Second)
 	if err != nil {
@@ -76,7 +72,6 @@ func main() {
 	defer redisClient.Close()
 	appLogger.Info("Connected to Redis successfully")
 
-	// Connect to NATS
 	appLogger.Info("Connecting to NATS...")
 	publisher, err := events.NewPublisher(cfg, appLogger)
 	if err != nil {
@@ -84,7 +79,6 @@ func main() {
 	}
 	defer publisher.Close()
 
-	// Initialize repositories
 	productRepo := postgres.NewProductRepository(db)
 	reviewRepo := postgres.NewReviewRepository(db)
 	redisCache := cacheRepo.NewRedisCache(
@@ -93,19 +87,15 @@ func main() {
 		cfg.Cache.ReviewsListTTL,
 	)
 
-	// Initialize services
 	productService := product.NewService(productRepo, appLogger)
 	reviewService := review.NewService(reviewRepo, redisCache, publisher, appLogger)
 
-	// Initialize HTTP handlers
 	productHandler := handler.NewProductHandler(productService, appLogger)
 	reviewHandler := handler.NewReviewHandler(reviewService, appLogger)
 
-	// Setup router
 	router := httpDelivery.NewRouter(productHandler, reviewHandler, appLogger)
 	httpHandler := router.Setup()
 
-	// Create HTTP server
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
 		Handler:      httpHandler,
@@ -113,7 +103,6 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
-	// Start server in a goroutine
 	go func() {
 		appLogger.Infof("HTTP server listening on port %s", cfg.Server.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -121,14 +110,12 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal for graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
 	appLogger.Info("Shutting down server...")
 
-	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 	defer cancel()
 

@@ -33,13 +33,11 @@ func (s *Service) Create(ctx context.Context, product *domain.Product) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Validate input
 	if err := s.validate.Struct(product); err != nil {
 		s.logger.Error("Product validation failed", err)
 		return domain.ErrInvalidInput
 	}
 
-	// Create product
 	if err := s.repo.Create(ctx, product); err != nil {
 		s.logger.Error("Failed to create product", err)
 		return err
@@ -76,7 +74,6 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]*domain.Produc
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Validate pagination parameters
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -104,13 +101,11 @@ func (s *Service) Update(ctx context.Context, product *domain.Product) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Validate input
 	if err := s.validate.Struct(product); err != nil {
 		s.logger.Error("Product validation failed", err)
 		return domain.ErrInvalidInput
 	}
 
-	// Update product
 	if err := s.repo.Update(ctx, product); err != nil {
 		s.logger.Error("Failed to update product", err)
 		return err

@@ -58,24 +58,21 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Validate input
 	if err := s.validate.Struct(review); err != nil {
 		s.logger.Error("Review validation failed", err)
 		return domain.ErrInvalidInput
 	}
 
-	// Create review
 	if err := s.repo.Create(ctx, review); err != nil {
 		s.logger.Error("Failed to create review", err)
 		return err
 	}
 
-	// Invalidate cache
+	// Stale cache would show incorrect ratings and review lists
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
 		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
 	}
 
-	// Publish event
 	s.publishEvent(ctx, "review.created", review)
 
 	s.logger.WithFields(map[string]interface{}{
@@ -110,7 +107,6 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Validate pagination parameters
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -118,10 +114,8 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		offset = 0
 	}
 
-	// Calculate page number
 	page := offset / limit
 
-	// Try cache first
 	reviews, err := s.cache.GetReviewsList(ctx, productID, page)
 	if err == nil {
 		s.logger.Debugf("Cache hit for product %s reviews page %d", productID, page)
@@ -133,7 +127,6 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		return reviews, total, nil
 	}
 
-	// Cache miss - fetch from database
 	s.logger.Debugf("Cache miss for product %s reviews page %d", productID, page)
 	reviews, err = s.repo.GetByProductID(ctx, productID, limit, offset)
 	if err != nil {
@@ -147,7 +140,6 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		return nil, 0, err
 	}
 
-	// Store in cache
 	if err := s.cache.SetReviewsList(ctx, productID, page, reviews); err != nil {
 		s.logger.Warnf("Failed to cache reviews for product %s page %d: %v", productID, page, err)
 	}
@@ -160,34 +152,30 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Validate input
 	if err := s.validate.Struct(review); err != nil {
 		s.logger.Error("Review validation failed", err)
 		return domain.ErrInvalidInput
 	}
 
-	// Get existing review to check product ID
+	// Product ID is needed for cache invalidation but not provided in update request
 	existingReview, err := s.repo.GetByID(ctx, review.ID)
 	if err != nil {
 		s.logger.Error("Failed to get existing review", err)
 		return err
 	}
 
-	// Update review
 	if err := s.repo.Update(ctx, review); err != nil {
 		s.logger.Error("Failed to update review", err)
 		return err
 	}
 
-	// Use the product ID from existing review
+	// Preserve product ID from existing review for event and cache operations
 	review.ProductID = existingReview.ProductID
 
-	// Invalidate cache
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
 		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
 	}
 
-	// Publish event
 	s.publishEvent(ctx, "review.updated", review)
 
 	s.logger.WithFields(map[string]interface{}{
@@ -204,25 +192,22 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Get review to know which product cache to invalidate
+	// Product ID is needed for cache invalidation but only stored in review record
 	review, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to get review for deletion", err)
 		return err
 	}
 
-	// Delete review
 	if err := s.repo.Delete(ctx, id); err != nil {
 		s.logger.Error("Failed to delete review", err)
 		return err
 	}
 
-	// Invalidate cache
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
 		s.logger.Warnf("Failed to invalidate cache for product %s: %v", review.ProductID, err)
 	}
 
-	// Publish event
 	s.publishEvent(ctx, "review.deleted", review)
 
 	s.logger.WithFields(map[string]interface{}{

@@ -96,7 +96,7 @@ func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, pa
 
 // InvalidateReviewsList removes all cached review pages for a product
 func (c *RedisCache) InvalidateReviewsList(ctx context.Context, productID uuid.UUID) error {
-	// Use pattern matching to delete all pages
+	// We don't know how many cached pages exist, so scan for all matching keys
 	pattern := fmt.Sprintf("product:%s:reviews:page:*", productID.String())
 
 	iter := c.client.Scan(ctx, 0, pattern, 0).Iterator()
@@ -111,12 +111,10 @@ func (c *RedisCache) InvalidateReviewsList(ctx context.Context, productID uuid.U
 
 // InvalidateAllProductCache invalidates all cache entries for a product
 func (c *RedisCache) InvalidateAllProductCache(ctx context.Context, productID uuid.UUID) error {
-	// Invalidate rating cache
 	if err := c.InvalidateProductRating(ctx, productID); err != nil && err != redis.Nil {
 		return err
 	}
 
-	// Invalidate reviews list cache
 	if err := c.InvalidateReviewsList(ctx, productID); err != nil && err != redis.Nil {
 		return err
 	}

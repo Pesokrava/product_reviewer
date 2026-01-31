@@ -24,7 +24,7 @@ func NewReviewRepository(db *sqlx.DB) *ReviewRepository {
 
 // Create creates a new review
 func (r *ReviewRepository) Create(ctx context.Context, review *domain.Review) error {
-	// First verify the product exists
+	// Return domain.ErrNotFound instead of cryptic foreign key constraint violation
 	var exists bool
 	checkQuery := `SELECT EXISTS(SELECT 1 FROM products WHERE id = $1 AND deleted_at IS NULL)`
 	err := r.db.GetContext(ctx, &exists, checkQuery, review.ProductID)
