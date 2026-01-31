@@ -64,6 +64,12 @@ func main() {
 	defer db.Close()
 	appLogger.Info("Connected to PostgreSQL successfully")
 
+	appLogger.Info("Running database migrations...")
+	if err := database.RunMigrations(db); err != nil {
+		appLogger.Fatal("Failed to run migrations", err)
+	}
+	appLogger.Info("Migrations completed successfully")
+
 	appLogger.Info("Connecting to Redis...")
 	redisClient, err := cache.WaitForRedis(cfg, 10, 2*time.Second)
 	if err != nil {

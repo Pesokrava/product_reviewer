@@ -27,6 +27,7 @@ RUN apk --no-cache add ca-certificates wget
 WORKDIR /root/
 
 COPY --from=builder /bin/api .
+COPY migrations migrations/
 
 EXPOSE 8080
 
