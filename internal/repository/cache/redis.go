@@ -65,6 +65,10 @@ func (c *RedisCache) reviewsListKey(productID uuid.UUID, limit, offset int) stri
 	return fmt.Sprintf("product:%s:reviews:limit:%d:offset:%d", productID.String(), limit, offset)
 }
 
+func (c *RedisCache) productCacheKeysSet(productID uuid.UUID) string {
+	return fmt.Sprintf("product:%s:cache_keys", productID.String())
+}
+
 // GetReviewsList retrieves cached reviews list for a product
 func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
 	key := c.reviewsListKey(productID, limit, offset)
@@ -84,29 +88,39 @@ func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, li
 	return reviews, nil
 }
 
-// SetReviewsList stores reviews list in cache
+// SetReviewsList stores reviews list in cache and tracks the key in a SET
 func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error {
 	key := c.reviewsListKey(productID, limit, offset)
+	trackingKey := c.productCacheKeysSet(productID)
+
 	data, err := json.Marshal(reviews)
 	if err != nil {
 		return err
 	}
-	return c.client.Set(ctx, key, data, c.reviewsListTTL).Err()
+
+	pipe := c.client.Pipeline()
+	pipe.Set(ctx, key, data, c.reviewsListTTL)
+	pipe.SAdd(ctx, trackingKey, key)
+	pipe.Expire(ctx, trackingKey, c.reviewsListTTL)
+	_, err = pipe.Exec(ctx)
+	return err
 }
 
-// InvalidateReviewsList removes all cached review pages for a product
+// InvalidateReviewsList removes all cached review pages for a product using SET-based tracking
 func (c *RedisCache) InvalidateReviewsList(ctx context.Context, productID uuid.UUID) error {
-	// Scan for all review list cache entries for this product (all limit/offset combinations)
-	pattern := fmt.Sprintf("product:%s:reviews:limit:*", productID.String())
+	trackingKey := c.productCacheKeysSet(productID)
 
-	iter := c.client.Scan(ctx, 0, pattern, 0).Iterator()
-	for iter.Next(ctx) {
-		if err := c.client.Del(ctx, iter.Val()).Err(); err != nil {
-			return err
-		}
+	keys, err := c.client.SMembers(ctx, trackingKey).Result()
+	if err != nil && err != redis.Nil {
+		return err
 	}
 
-	return iter.Err()
+	if len(keys) > 0 {
+		keys = append(keys, trackingKey)
+		return c.client.Unlink(ctx, keys...).Err()
+	}
+
+	return nil
 }
 
 // InvalidateAllProductCache invalidates all cache entries for a product
