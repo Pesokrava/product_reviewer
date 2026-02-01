@@ -11,12 +11,18 @@ import (
 
 	"github.com/Pesokrava/product_reviewer/internal/domain"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"
-	"github.com/Pesokrava/product_reviewer/internal/repository/cache"
 )
 
 // EventPublisher defines the interface for publishing events
 type EventPublisher interface {
 	Publish(ctx context.Context, subject string, data []byte) error
+}
+
+// ReviewCache defines the interface for review caching operations
+type ReviewCache interface {
+	GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error)
+	SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error
+	InvalidateAllProductCache(ctx context.Context, productID uuid.UUID) error
 }
 
 // ReviewEvent represents an event related to a review
@@ -30,7 +36,7 @@ type ReviewEvent struct {
 // Service handles review business logic with caching and event publishing
 type Service struct {
 	repo      domain.ReviewRepository
-	cache     *cache.RedisCache
+	cache     ReviewCache
 	publisher EventPublisher
 	validate  *validator.Validate
 	logger    *logger.Logger
@@ -39,7 +45,7 @@ type Service struct {
 // NewService creates a new review service
 func NewService(
 	repo domain.ReviewRepository,
-	cache *cache.RedisCache,
+	cache ReviewCache,
 	publisher EventPublisher,
 	log *logger.Logger,
 ) *Service {
