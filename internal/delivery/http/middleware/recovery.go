@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"runtime/debug"
 
 	"github.com/Pesokrava/product_reviewer/internal/delivery/http/response"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"
@@ -13,11 +14,13 @@ func Recovery(log *logger.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if rec := recover(); rec != nil {
-					log.WithFields(map[string]interface{}{
-						"panic":  rec,
-						"method": r.Method,
-						"path":   r.URL.Path,
-					}).Info("Panic recovered")
+					// Log panic with full stack trace for debugging
+					log.GetZerologLogger().Error().
+						Interface("panic", rec).
+						Str("method", r.Method).
+						Str("path", r.URL.Path).
+						Str("stacktrace", string(debug.Stack())).
+						Msg("Panic recovered")
 
 					response.Error(w, http.StatusInternalServerError, "Internal server error")
 				}

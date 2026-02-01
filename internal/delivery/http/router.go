@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -43,6 +44,7 @@ func (rt *Router) Setup() http.Handler {
 
 	r.Use(middleware.Recovery(rt.logger))
 	r.Use(middleware.Logger(rt.logger))
+	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   rt.cfg.Server.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

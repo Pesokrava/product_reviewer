@@ -54,7 +54,9 @@ func (c *Consumer) Subscribe(subject string, handler func(data []byte) error) er
 // Close closes the NATS connection
 func (c *Consumer) Close() {
 	if c.sub != nil {
-		c.sub.Unsubscribe()
+		if err := c.sub.Unsubscribe(); err != nil {
+			c.logger.Warnf("Failed to unsubscribe from NATS: %v", err)
+		}
 	}
 	if c.nc != nil {
 		c.nc.Close()

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Pesokrava/product_reviewer/internal/domain"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"
+	pkgValidator "github.com/Pesokrava/product_reviewer/internal/pkg/validator"
 )
 
 // EventPublisher defines the interface for publishing events
@@ -53,7 +54,7 @@ func NewService(
 		repo:      repo,
 		cache:     cache,
 		publisher: publisher,
-		validate:  validator.New(),
+		validate:  pkgValidator.Get(),
 		logger:    log,
 	}
 }
@@ -224,10 +225,14 @@ func (s *Service) publishEvent(ctx context.Context, eventType string, review *do
 		return
 	}
 
-	// Publish in background to avoid blocking
-	go func(pubCtx context.Context) {
-		if err := s.publisher.Publish(pubCtx, "reviews.events", data); err != nil {
+	// Publish in background to avoid blocking the HTTP response
+	// Use detached context with timeout to prevent cancellation when HTTP request completes
+	go func() {
+		publishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := s.publisher.Publish(publishCtx, "reviews.events", data); err != nil {
 			s.logger.Errorf(err, "Failed to publish event for review %s", review.ID)
 		}
-	}(ctx)
+	}()
 }

@@ -3,6 +3,7 @@ package request
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -10,9 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// DecodeJSON decodes JSON request body into the provided struct
+const maxRequestBodySize = 1 << 20 // 1MB
+
+// DecodeJSON decodes JSON request body into the provided struct with size limit
 func DecodeJSON(r *http.Request, v interface{}) error {
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+	defer r.Body.Close()
+
+	// Limit request body size to prevent DoS attacks
+	limitedReader := io.LimitReader(r.Body, maxRequestBodySize)
+
+	if err := json.NewDecoder(limitedReader).Decode(v); err != nil {
 		return fmt.Errorf("failed to decode JSON: %w", err)
 	}
 	return nil

@@ -8,6 +8,7 @@ import (
 
 	"github.com/Pesokrava/product_reviewer/internal/domain"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"
+	pkgValidator "github.com/Pesokrava/product_reviewer/internal/pkg/validator"
 )
 
 // Service handles product business logic
@@ -21,7 +22,7 @@ type Service struct {
 func NewService(repo domain.ProductRepository, log *logger.Logger) *Service {
 	return &Service{
 		repo:     repo,
-		validate: validator.New(),
+		validate: pkgValidator.Get(),
 		logger:   log,
 	}
 }

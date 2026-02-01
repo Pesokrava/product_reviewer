@@ -35,7 +35,17 @@ func executeMigration(db *sqlx.DB, name, sql string) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+
+	// Track if we successfully committed to avoid rollback after commit
+	committed := false
+	defer func() {
+		if !committed {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				// Log rollback failure for debugging migration issues
+				fmt.Fprintf(os.Stderr, "failed to rollback transaction for %s: %v\n", name, rollbackErr)
+			}
+		}
+	}()
 
 	if _, err := tx.Exec(sql); err != nil {
 		return fmt.Errorf("failed to execute SQL: %w", err)
@@ -45,5 +55,6 @@ func executeMigration(db *sqlx.DB, name, sql string) error {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	committed = true
 	return nil
 }

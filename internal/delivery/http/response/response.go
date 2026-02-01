@@ -1,15 +1,28 @@
 package response
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 )
 
-// JSON writes a JSON response
+// JSON writes a JSON response with proper error handling
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	// Buffer JSON encoding to handle errors before writing headers
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(data); err != nil {
+		// Can still send proper error response since headers not sent yet
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		// Nothing we can do if encoding the error message itself fails
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to encode response"})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
+	// If writing to response fails, connection is broken and no recovery possible
+	_, _ = buf.WriteTo(w)
 }
 
 // Error writes an error response
