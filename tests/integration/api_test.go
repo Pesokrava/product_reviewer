@@ -191,13 +191,13 @@ func TestReviewCreateAndList(t *testing.T) {
 	reviews := listResp["data"].([]interface{})
 	assert.GreaterOrEqual(t, len(reviews), 1)
 
-	// Update the review
-	updateJSON := fmt.Sprintf(`{
+	// Update the review (product_id not required in update)
+	updateJSON := `{
 		"first_name": "John",
 		"last_name": "Doe",
 		"review_text": "Updated: Still excellent!",
 		"rating": 4
-	}`)
+	}`
 
 	req = httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/reviews/%s", reviewID), bytes.NewBufferString(updateJSON))
 	req.Header.Set("Content-Type", "application/json")

@@ -144,25 +144,25 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 
 // Update updates an existing review
 func (s *Service) Update(ctx context.Context, review *domain.Review) error {
-	if err := s.validate.Struct(review); err != nil {
-		s.logger.Error("Review validation failed", err)
-		return domain.ErrInvalidInput
-	}
-
-	// Product ID is needed for cache invalidation but not provided in update request
+	// Product ID is needed for validation, cache invalidation, and events but not provided in update request
 	existingReview, err := s.repo.GetByID(ctx, review.ID)
 	if err != nil {
 		s.logger.Error("Failed to get existing review", err)
 		return err
 	}
 
+	// Set product ID from existing review before validation
+	review.ProductID = existingReview.ProductID
+
+	if err := s.validate.Struct(review); err != nil {
+		s.logger.Error("Review validation failed", err)
+		return domain.ErrInvalidInput
+	}
+
 	if err := s.repo.Update(ctx, review); err != nil {
 		s.logger.Error("Failed to update review", err)
 		return err
 	}
-
-	// Preserve product ID from existing review for event and cache operations
-	review.ProductID = existingReview.ProductID
 
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
 		s.logger.Error("Failed to invalidate cache", err)
