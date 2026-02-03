@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 -- Create indexes
-CREATE INDEX idx_reviews_product_id ON reviews(product_id);
-CREATE INDEX idx_reviews_deleted_at ON reviews(deleted_at);
-CREATE INDEX idx_reviews_product_id_deleted_at ON reviews(product_id, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_deleted_at ON reviews(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id_deleted_at ON reviews(product_id, deleted_at);
 
 -- Create function to update product average rating
 CREATE OR REPLACE FUNCTION update_product_average_rating()
@@ -33,6 +33,9 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop trigger if it exists before creating to ensure idempotency
+DROP TRIGGER IF EXISTS trigger_update_product_rating ON reviews;
 
 -- Create trigger to automatically update product rating on review changes
 CREATE TRIGGER trigger_update_product_rating

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 -- Create index on deleted_at for soft delete queries
-CREATE INDEX idx_products_deleted_at ON products(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_products_deleted_at ON products(deleted_at);
 
 -- Create index on name for search queries
-CREATE INDEX idx_products_name ON products(name);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);

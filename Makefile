@@ -147,7 +147,7 @@ dev: dev-infra dev-db-setup
 		echo "Starting API server with hot reload and debug server..."; \
 		echo ""; \
 		echo "  API:        http://localhost:8080"; \
-		echo "  Swagger:    http://localhost:8080/swagger/index.html"; \
+		echo "  Swagger:    http://localhost:8080/docs"; \
 		echo "  Debug Port: localhost:2345 (Delve)"; \
 		echo ""; \
 		echo "Hot reload is enabled - changes will auto-rebuild"; \
@@ -162,7 +162,7 @@ dev: dev-infra dev-db-setup
 		echo ""; \
 		echo "Starting API server..."; \
 		echo "API will be available at http://localhost:8080"; \
-		echo "Swagger docs at http://localhost:8080/swagger/index.html"; \
+		echo "Swagger docs at http://localhost:8080/docs"; \
 		echo ""; \
 		echo "Press Ctrl+C to stop"; \
 		echo ""; \

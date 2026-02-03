@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## LLM Navigation and Assistance
+
+This document is specifically structured to facilitate navigation and comprehension by large language models (LLMs) and their associated code analysis tools, such as `tldr mcp`. It aims to provide a concise yet comprehensive overview of the codebase, essential development commands, architectural patterns, and critical implementation details, enabling efficient understanding and interaction.
+
+
+
 ## Essential Development Commands
 
 ### Quick Start (Development Server)
