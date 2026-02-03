@@ -46,7 +46,7 @@ type UpdateProductRequest struct {
 // @Accept json
 // @Produce json
 // @Param product body CreateProductRequest true "Product details"
-// @Success 201 {object} map[string]interface{} "Product created successfully"
+// @Success 201 {object} map[string]any "Product created successfully"
 // @Failure 400 {object} map[string]string "Invalid request body"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /products [post]
@@ -78,7 +78,7 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID (UUID)"
-// @Success 200 {object} map[string]interface{} "Product details"
+// @Success 200 {object} map[string]any "Product details"
 // @Failure 400 {object} map[string]string "Invalid product ID"
 // @Failure 404 {object} map[string]string "Product not found"
 // @Failure 500 {object} map[string]string "Internal server error"
@@ -107,7 +107,7 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param limit query int false "Number of items per page (max 100)" default(20)
 // @Param offset query int false "Number of items to skip" default(0)
-// @Success 200 {object} map[string]interface{} "Paginated list of products"
+// @Success 200 {object} map[string]any "Paginated list of products"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /products [get]
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +130,7 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Product ID (UUID)"
 // @Param product body UpdateProductRequest true "Updated product details"
-// @Success 200 {object} map[string]interface{} "Product updated successfully"
+// @Success 200 {object} map[string]any "Product updated successfully"
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 404 {object} map[string]string "Product not found"
 // @Failure 409 {object} map[string]string "Conflict - product was modified"

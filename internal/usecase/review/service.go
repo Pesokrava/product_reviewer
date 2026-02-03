@@ -73,7 +73,7 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 	// Invalidate cache to prevent stale data
 	// Non-fatal: if cache is down, accept temporary staleness over API unavailability
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.WithFields(map[string]any{
 			"product_id": review.ProductID,
 			"error":      err.Error(),
 		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
@@ -81,7 +81,7 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 
 	s.publishEvent(ctx, "review.created", review)
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"review_id":  review.ID,
 		"product_id": review.ProductID,
 		"rating":     review.Rating,
@@ -170,7 +170,7 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 	// Invalidate cache to prevent stale data
 	// Non-fatal: if cache is down, accept temporary staleness over API unavailability
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.WithFields(map[string]any{
 			"product_id": review.ProductID,
 			"error":      err.Error(),
 		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
@@ -178,7 +178,7 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 
 	s.publishEvent(ctx, "review.updated", review)
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"review_id":  review.ID,
 		"product_id": review.ProductID,
 		"rating":     review.Rating,
@@ -204,7 +204,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	// Invalidate cache to prevent stale data
 	// Non-fatal: if cache is down, accept temporary staleness over API unavailability
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.WithFields(map[string]any{
 			"product_id": review.ProductID,
 			"error":      err.Error(),
 		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
@@ -212,7 +212,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 
 	s.publishEvent(ctx, "review.deleted", review)
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"review_id":  id,
 		"product_id": review.ProductID,
 	}).Info("Review deleted successfully")

@@ -68,7 +68,7 @@ func (c *Consumer) Close() {
 func LoggingHandler(log *logger.Logger) func(data []byte) error {
 	return func(data []byte) error {
 		// Pretty print the JSON
-		var event map[string]interface{}
+		var event map[string]any
 		if err := json.Unmarshal(data, &event); err != nil {
 			log.Error("Failed to unmarshal event", err)
 			return err

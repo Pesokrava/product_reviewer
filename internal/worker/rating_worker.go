@@ -65,13 +65,13 @@ func NewRatingWorker(calculator *Calculator, logger *logger.Logger) *RatingWorke
 func (w *RatingWorker) HandleEvent(data []byte) error {
 	var event ReviewEvent
 	if err := json.Unmarshal(data, &event); err != nil {
-		w.logger.WithFields(map[string]interface{}{
+		w.logger.WithFields(map[string]any{
 			"error": err.Error(),
 		}).Error("Failed to unmarshal review event", err)
 		return fmt.Errorf("failed to unmarshal event: %w", err)
 	}
 
-	w.logger.WithFields(map[string]interface{}{
+	w.logger.WithFields(map[string]any{
 		"type":       event.Type,
 		"product_id": event.ProductID.String(),
 		"timestamp":  event.Timestamp,
@@ -103,7 +103,7 @@ func (w *RatingWorker) scheduleUpdate(productID uuid.UUID, timestamp time.Time) 
 	if found {
 		// Ignore stale events
 		if timestamp.Before(existing.timestamp) {
-			w.logger.WithFields(map[string]interface{}{
+			w.logger.WithFields(map[string]any{
 				"product_id":       productID.String(),
 				"existing_ts":      existing.timestamp,
 				"event_ts":         timestamp,
@@ -113,7 +113,7 @@ func (w *RatingWorker) scheduleUpdate(productID uuid.UUID, timestamp time.Time) 
 
 		// Cancel existing timer (we'll create a new one)
 		existing.timer.Stop()
-		w.logger.WithFields(map[string]interface{}{
+		w.logger.WithFields(map[string]any{
 			"product_id": productID.String(),
 		}).Debug("Debouncing: resetting timer for product")
 	} else {
@@ -141,7 +141,7 @@ func (w *RatingWorker) processUpdate(productID uuid.UUID) {
 	delete(w.pendingUpdates, productID)
 	w.mu.Unlock()
 
-	w.logger.WithFields(map[string]interface{}{
+	w.logger.WithFields(map[string]any{
 		"product_id": productID.String(),
 	}).Info("Processing rating update")
 
@@ -151,7 +151,7 @@ func (w *RatingWorker) processUpdate(productID uuid.UUID) {
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
-			w.logger.WithFields(map[string]interface{}{
+			w.logger.WithFields(map[string]any{
 				"product_id": productID.String(),
 				"attempt":    attempt + 1,
 				"backoff_ms": backoff.Milliseconds(),
@@ -178,7 +178,7 @@ func (w *RatingWorker) processUpdate(productID uuid.UUID) {
 		}
 
 		lastErr = err
-		w.logger.WithFields(map[string]interface{}{
+		w.logger.WithFields(map[string]any{
 			"product_id": productID.String(),
 			"attempt":    attempt + 1,
 			"error":      err.Error(),
@@ -186,7 +186,7 @@ func (w *RatingWorker) processUpdate(productID uuid.UUID) {
 	}
 
 	// All retries exhausted
-	w.logger.WithFields(map[string]interface{}{
+	w.logger.WithFields(map[string]any{
 		"product_id":  productID.String(),
 		"max_retries": maxRetries,
 		"error":       lastErr.Error(),
@@ -214,7 +214,7 @@ func (w *RatingWorker) Shutdown(ctx context.Context) error {
 	w.pendingUpdates = make(map[uuid.UUID]*pendingUpdate)
 	w.mu.Unlock()
 
-	w.logger.WithFields(map[string]interface{}{
+	w.logger.WithFields(map[string]any{
 		"cancelled_updates": pendingCount,
 	}).Info("Cancelled pending updates")
 

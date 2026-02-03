@@ -85,7 +85,7 @@ func TestProductHandler_Create_Success(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 	mockRepo.AssertExpectations(t)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Contains(t, response, "data")
 }
@@ -183,7 +183,7 @@ func TestProductHandler_GetByID_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRepo.AssertExpectations(t)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Contains(t, response, "data")
 }
@@ -265,7 +265,7 @@ func TestProductHandler_List_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRepo.AssertExpectations(t)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Contains(t, response, "data")
 	assert.Contains(t, response, "pagination")
@@ -290,9 +290,9 @@ func TestProductHandler_List_WithPagination(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRepo.AssertExpectations(t)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	pagination := response["pagination"].(map[string]interface{})
+	pagination := response["pagination"].(map[string]any)
 	assert.Equal(t, float64(10), pagination["limit"])
 	assert.Equal(t, float64(20), pagination["offset"])
 	assert.Equal(t, float64(100), pagination["total"])

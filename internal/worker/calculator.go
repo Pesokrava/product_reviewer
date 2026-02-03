@@ -54,13 +54,13 @@ func (c *Calculator) CalculateAndUpdate(ctx context.Context, productID uuid.UUID
 
 	// Product not found or deleted - not an error, just log
 	if rowsAffected == 0 {
-		c.logger.WithFields(map[string]interface{}{
+		c.logger.WithFields(map[string]any{
 			"product_id": productID.String(),
 		}).Info("Product not found or deleted, skipping rating update")
 		return nil
 	}
 
-	c.logger.WithFields(map[string]interface{}{
+	c.logger.WithFields(map[string]any{
 		"product_id": productID.String(),
 	}).Info("Successfully updated product rating")
 

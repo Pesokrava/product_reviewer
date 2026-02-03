@@ -7,7 +7,7 @@ import (
 )
 
 // JSON writes a JSON response with proper error handling
-func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+func JSON(w http.ResponseWriter, statusCode int, data any) {
 	// Buffer JSON encoding to handle errors before writing headers
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(data); err != nil {
@@ -33,16 +33,16 @@ func Error(w http.ResponseWriter, statusCode int, message string) {
 }
 
 // Success writes a success response with data
-func Success(w http.ResponseWriter, data interface{}) {
-	JSON(w, http.StatusOK, map[string]interface{}{
+func Success(w http.ResponseWriter, data any) {
+	JSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    data,
 	})
 }
 
 // Created writes a created response
-func Created(w http.ResponseWriter, data interface{}) {
-	JSON(w, http.StatusCreated, map[string]interface{}{
+func Created(w http.ResponseWriter, data any) {
+	JSON(w, http.StatusCreated, map[string]any{
 		"success": true,
 		"data":    data,
 	})
@@ -54,8 +54,8 @@ func NoContent(w http.ResponseWriter) {
 }
 
 // Paginated writes a paginated response
-func Paginated(w http.ResponseWriter, data interface{}, total, limit, offset int) {
-	JSON(w, http.StatusOK, map[string]interface{}{
+func Paginated(w http.ResponseWriter, data any, total, limit, offset int) {
+	JSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    data,
 		"pagination": map[string]int{

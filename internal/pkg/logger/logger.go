@@ -43,7 +43,7 @@ func (l *Logger) Debug(msg string) {
 }
 
 // Debugf logs a formatted debug message
-func (l *Logger) Debugf(format string, v ...interface{}) {
+func (l *Logger) Debugf(format string, v ...any) {
 	l.logger.Debug().Msgf(format, v...)
 }
 
@@ -53,7 +53,7 @@ func (l *Logger) Info(msg string) {
 }
 
 // Infof logs a formatted info message
-func (l *Logger) Infof(format string, v ...interface{}) {
+func (l *Logger) Infof(format string, v ...any) {
 	l.logger.Info().Msgf(format, v...)
 }
 
@@ -63,7 +63,7 @@ func (l *Logger) Warn(msg string) {
 }
 
 // Warnf logs a formatted warning message
-func (l *Logger) Warnf(format string, v ...interface{}) {
+func (l *Logger) Warnf(format string, v ...any) {
 	l.logger.Warn().Msgf(format, v...)
 }
 
@@ -73,7 +73,7 @@ func (l *Logger) Error(msg string, err error) {
 }
 
 // Errorf logs a formatted error message
-func (l *Logger) Errorf(err error, format string, v ...interface{}) {
+func (l *Logger) Errorf(err error, format string, v ...any) {
 	l.logger.Error().Err(err).Msgf(format, v...)
 }
 
@@ -83,19 +83,19 @@ func (l *Logger) Fatal(msg string, err error) {
 }
 
 // Fatalf logs a formatted fatal message and exits
-func (l *Logger) Fatalf(err error, format string, v ...interface{}) {
+func (l *Logger) Fatalf(err error, format string, v ...any) {
 	l.logger.Fatal().Err(err).Msgf(format, v...)
 }
 
 // With returns a new logger with additional context fields
-func (l *Logger) With(key string, value interface{}) *Logger {
+func (l *Logger) With(key string, value any) *Logger {
 	return &Logger{
 		logger: l.logger.With().Interface(key, value).Logger(),
 	}
 }
 
 // WithFields returns a new logger with multiple context fields
-func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
+func (l *Logger) WithFields(fields map[string]any) *Logger {
 	ctx := l.logger.With()
 	for k, v := range fields {
 		ctx = ctx.Interface(k, v)

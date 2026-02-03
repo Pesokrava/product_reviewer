@@ -296,6 +296,15 @@ When adding new packages, ensure imports use this path.
 
 If you find yourself writing a comment that describes HOW the code works, consider refactoring the code to be more self-documenting instead (better variable names, extracted functions, etc.).
 
+### Go Type Standards
+
+**Always use `any` instead of `interface{}`**:
+- `any` is the modern Go 1.18+ alias for `interface{}`
+- More readable and idiomatic in modern Go code
+- Good: `func Process(data any) error`
+- Bad: `func Process(data interface{}) error`
+- Apply this consistently across function signatures, type assertions, and type definitions
+
 ### API Documentation
 
 **Every API change MUST be reflected in Swagger/OpenAPI documentation**:

@@ -88,12 +88,12 @@ func TestProductCreateAndGet(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&createResp)
 	require.NoError(t, err)
 
 	assert.True(t, createResp["success"].(bool))
-	productData := createResp["data"].(map[string]interface{})
+	productData := createResp["data"].(map[string]any)
 	productID := productData["id"].(string)
 
 	// Get product
@@ -104,12 +104,12 @@ func TestProductCreateAndGet(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var getResp map[string]interface{}
+	var getResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&getResp)
 	require.NoError(t, err)
 
 	assert.True(t, getResp["success"].(bool))
-	getData := getResp["data"].(map[string]interface{})
+	getData := getResp["data"].(map[string]any)
 	assert.Equal(t, "Test Product", getData["name"])
 	assert.Equal(t, 99.99, getData["price"])
 }
@@ -124,7 +124,7 @@ func TestHealthCheck(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&resp)
 	require.NoError(t, err)
 
@@ -146,10 +146,10 @@ func TestReviewCreateAndList(t *testing.T) {
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var productResp map[string]interface{}
+	var productResp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData := productResp["data"].(map[string]interface{})
+	productData := productResp["data"].(map[string]any)
 	productID := productData["id"].(string)
 
 	// Create a review
@@ -168,11 +168,11 @@ func TestReviewCreateAndList(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var reviewResp map[string]interface{}
+	var reviewResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&reviewResp)
 	require.NoError(t, err)
 	assert.True(t, reviewResp["success"].(bool))
-	reviewData := reviewResp["data"].(map[string]interface{})
+	reviewData := reviewResp["data"].(map[string]any)
 	reviewID := reviewData["id"].(string)
 	assert.Equal(t, "John", reviewData["first_name"])
 	assert.Equal(t, float64(5), reviewData["rating"])
@@ -184,11 +184,11 @@ func TestReviewCreateAndList(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var listResp map[string]interface{}
+	var listResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&listResp)
 	require.NoError(t, err)
 	assert.True(t, listResp["success"].(bool))
-	reviews := listResp["data"].([]interface{})
+	reviews := listResp["data"].([]any)
 	assert.GreaterOrEqual(t, len(reviews), 1)
 
 	// Update the review (product_id not required in update)
@@ -206,11 +206,11 @@ func TestReviewCreateAndList(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&updateResp)
 	require.NoError(t, err)
 	assert.True(t, updateResp["success"].(bool))
-	updatedData := updateResp["data"].(map[string]interface{})
+	updatedData := updateResp["data"].(map[string]any)
 	assert.Equal(t, float64(4), updatedData["rating"])
 	assert.Equal(t, "Updated: Still excellent!", updatedData["review_text"])
 
@@ -237,10 +237,10 @@ func TestProductRatingUpdate(t *testing.T) {
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var productResp map[string]interface{}
+	var productResp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData := productResp["data"].(map[string]interface{})
+	productData := productResp["data"].(map[string]any)
 	productID := productData["id"].(string)
 
 	// Initial rating should be 0
@@ -269,7 +269,7 @@ func TestProductRatingUpdate(t *testing.T) {
 
 	err = json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData = productResp["data"].(map[string]interface{})
+	productData = productResp["data"].(map[string]any)
 	assert.Equal(t, float64(5), productData["average_rating"])
 
 	// Create second review with rating 3
@@ -295,7 +295,7 @@ func TestProductRatingUpdate(t *testing.T) {
 
 	err = json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData = productResp["data"].(map[string]interface{})
+	productData = productResp["data"].(map[string]any)
 	assert.Equal(t, float64(4), productData["average_rating"])
 }
 
@@ -314,10 +314,10 @@ func TestPaginationCaching(t *testing.T) {
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var productResp map[string]interface{}
+	var productResp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData := productResp["data"].(map[string]interface{})
+	productData := productResp["data"].(map[string]any)
 	productID := productData["id"].(string)
 
 	// Create 5 reviews
@@ -345,10 +345,10 @@ func TestPaginationCaching(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var firstResp map[string]interface{}
+	var firstResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&firstResp)
 	require.NoError(t, err)
-	firstReviews := firstResp["data"].([]interface{})
+	firstReviews := firstResp["data"].([]any)
 	assert.Len(t, firstReviews, 3)
 
 	// Second request with same params - should be cache hit
@@ -358,10 +358,10 @@ func TestPaginationCaching(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var secondResp map[string]interface{}
+	var secondResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&secondResp)
 	require.NoError(t, err)
-	secondReviews := secondResp["data"].([]interface{})
+	secondReviews := secondResp["data"].([]any)
 	assert.Len(t, secondReviews, 3)
 
 	// Different pagination - should be cache miss
@@ -371,10 +371,10 @@ func TestPaginationCaching(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var thirdResp map[string]interface{}
+	var thirdResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&thirdResp)
 	require.NoError(t, err)
-	thirdReviews := thirdResp["data"].([]interface{})
+	thirdReviews := thirdResp["data"].([]any)
 	assert.Len(t, thirdReviews, 2)
 }
 
@@ -393,10 +393,10 @@ func TestNonAlignedPaginationOffset(t *testing.T) {
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var productResp map[string]interface{}
+	var productResp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData := productResp["data"].(map[string]interface{})
+	productData := productResp["data"].(map[string]any)
 	productID := productData["id"].(string)
 
 	// Create 30 reviews
@@ -422,28 +422,28 @@ func TestNonAlignedPaginationOffset(t *testing.T) {
 	w = httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var alignedResp map[string]interface{}
+	var alignedResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&alignedResp)
 	require.NoError(t, err)
-	alignedReviews := alignedResp["data"].([]interface{})
+	alignedReviews := alignedResp["data"].([]any)
 
 	// Non-aligned offset (offset=25, limit=20) - this should NOT return the same data
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s/reviews?limit=20&offset=25", productID), nil)
 	w = httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var nonAlignedResp map[string]interface{}
+	var nonAlignedResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&nonAlignedResp)
 	require.NoError(t, err)
-	nonAlignedReviews := nonAlignedResp["data"].([]interface{})
+	nonAlignedReviews := nonAlignedResp["data"].([]any)
 
 	// Verify they return different results
 	assert.NotEqual(t, len(alignedReviews), len(nonAlignedReviews), "Non-aligned offset should return different number of reviews")
 
 	// Verify the cache keys are different by checking the results are different
 	if len(alignedReviews) > 0 && len(nonAlignedReviews) > 0 {
-		alignedFirstReview := alignedReviews[0].(map[string]interface{})
-		nonAlignedFirstReview := nonAlignedReviews[0].(map[string]interface{})
+		alignedFirstReview := alignedReviews[0].(map[string]any)
+		nonAlignedFirstReview := nonAlignedReviews[0].(map[string]any)
 		assert.NotEqual(t, alignedFirstReview["id"], nonAlignedFirstReview["id"], "Different offsets should return different reviews")
 	}
 }
@@ -463,10 +463,10 @@ func TestConcurrentReviewCreation(t *testing.T) {
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var productResp map[string]interface{}
+	var productResp map[string]any
 	err := json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData := productResp["data"].(map[string]interface{})
+	productData := productResp["data"].(map[string]any)
 	productID := productData["id"].(string)
 
 	// Create 10 reviews concurrently
@@ -512,10 +512,10 @@ func TestConcurrentReviewCreation(t *testing.T) {
 	w = httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	var listResp map[string]interface{}
+	var listResp map[string]any
 	err = json.NewDecoder(w.Body).Decode(&listResp)
 	require.NoError(t, err)
-	reviews := listResp["data"].([]interface{})
+	reviews := listResp["data"].([]any)
 	assert.GreaterOrEqual(t, len(reviews), 10, "All concurrent reviews should be created")
 
 	// Verify average rating was calculated correctly
@@ -525,7 +525,7 @@ func TestConcurrentReviewCreation(t *testing.T) {
 
 	err = json.NewDecoder(w.Body).Decode(&productResp)
 	require.NoError(t, err)
-	productData = productResp["data"].(map[string]interface{})
+	productData = productResp["data"].(map[string]any)
 	avgRating := productData["average_rating"].(float64)
 	assert.Greater(t, avgRating, float64(0), "Average rating should be calculated from concurrent reviews")
 }

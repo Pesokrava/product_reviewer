@@ -52,7 +52,7 @@ func main() {
 	}
 	defer nc.Close()
 
-	appLogger.WithFields(map[string]interface{}{
+	appLogger.WithFields(map[string]any{
 		"url": cfg.NATS.URL,
 	}).Info("Connected to NATS")
 
@@ -60,7 +60,7 @@ func main() {
 	subject := "reviews.events"
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		if err := ratingWorker.HandleEvent(msg.Data); err != nil {
-			appLogger.WithFields(map[string]interface{}{
+			appLogger.WithFields(map[string]any{
 				"error": err.Error(),
 			}).Error("Failed to handle event", err)
 		}
@@ -74,7 +74,7 @@ func main() {
 		}
 	}()
 
-	appLogger.WithFields(map[string]interface{}{
+	appLogger.WithFields(map[string]any{
 		"subject": subject,
 	}).Info("Subscribed to review events")
 
@@ -90,7 +90,7 @@ func main() {
 	defer cancel()
 
 	if err := ratingWorker.Shutdown(shutdownCtx); err != nil {
-		appLogger.WithFields(map[string]interface{}{
+		appLogger.WithFields(map[string]any{
 			"error": err.Error(),
 		}).Error("Error during shutdown", err)
 	}

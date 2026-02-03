@@ -39,7 +39,7 @@ func (s *Service) Create(ctx context.Context, product *domain.Product) error {
 		return err
 	}
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"product_id": product.ID,
 		"name":       product.Name,
 	}).Info("Product created successfully")
@@ -98,7 +98,7 @@ func (s *Service) Update(ctx context.Context, product *domain.Product) error {
 		return err
 	}
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"product_id": product.ID,
 		"name":       product.Name,
 	}).Info("Product updated successfully")
@@ -113,7 +113,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"product_id": id,
 	}).Info("Product deleted successfully")
 

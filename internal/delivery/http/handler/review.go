@@ -51,7 +51,7 @@ type UpdateReviewRequest struct {
 // @Accept json
 // @Produce json
 // @Param review body CreateReviewRequest true "Review details"
-// @Success 201 {object} map[string]interface{} "Review created successfully"
+// @Success 201 {object} map[string]any "Review created successfully"
 // @Failure 400 {object} map[string]string "Invalid request body or product not found"
 // @Failure 404 {object} map[string]string "Product not found"
 // @Failure 500 {object} map[string]string "Internal server error"
@@ -93,7 +93,7 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "Review ID (UUID)"
 // @Param review body UpdateReviewRequest true "Updated review details"
-// @Success 200 {object} map[string]interface{} "Review updated successfully"
+// @Success 200 {object} map[string]any "Review updated successfully"
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 404 {object} map[string]string "Review not found"
 // @Failure 500 {object} map[string]string "Internal server error"
@@ -163,7 +163,7 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "Product ID (UUID)"
 // @Param limit query int false "Number of items per page (max 100)" default(20)
 // @Param offset query int false "Number of items to skip" default(0)
-// @Success 200 {object} map[string]interface{} "Paginated list of reviews"
+// @Success 200 {object} map[string]any "Paginated list of reviews"
 // @Failure 400 {object} map[string]string "Invalid product ID"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /products/{id}/reviews [get]

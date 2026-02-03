@@ -32,7 +32,7 @@ func Logger(log *logger.Logger) func(http.Handler) http.Handler {
 
 			// Log request
 			duration := time.Since(start)
-			log.WithFields(map[string]interface{}{
+			log.WithFields(map[string]any{
 				"method":      r.Method,
 				"path":        r.URL.Path,
 				"status":      rw.statusCode,
