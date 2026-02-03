@@ -149,26 +149,28 @@ This codebase follows **Clean Architecture** with strict dependency rules:
 
 #### Concurrency-Safe Rating Calculation
 
-The system uses a **two-layer approach** to ensure average_rating is always correct:
+The system uses a **two-layer approach** to ensure average_rating is eventually correct:
 
-1. **Database Trigger (Primary Safety Mechanism)**:
-   - PostgreSQL trigger in `migrations/000002_create_reviews_table.up.sql`
-   - Automatically recalculates `average_rating` on ANY review change (INSERT/UPDATE/DELETE)
-   - Runs atomically within transaction context
-   - Updates `version` field for optimistic locking
-   - This is the **source of truth** - application code relies on this trigger
-   - PostgreSQL MVCC handles concurrent access safely without application-level locks
-
-2. **Cache Invalidation (Consistency)**:
+1. **Layer 1: Cache Invalidation (Immediate Consistency)**:
    - On any review write operation, invalidate ALL cache for that product
    - Pattern: `s.cache.InvalidateAllProductCache(ctx, productID)`
    - Clears both rating cache and all paginated review lists
    - Redis operations (Del, SMembers, Unlink) are atomic
+   - Cache invalidation is **non-fatal** - write operations succeed even if Redis is down
+
+2. **Layer 2: Asynchronous Rating Worker (Source of Truth)**:
+   - Review service publishes events to NATS (`reviews.events` subject) in fire-and-forget pattern
+   - Rating worker (`cmd/rating-worker/main.go`) subscribes to these events
+   - Worker debounces updates (1-second window) to batch multiple events for the same product
+   - Exponential backoff retry (3 attempts) handles transient database failures
+   - Worker executes SQL: `UPDATE products SET average_rating = ..., version = version + 1 WHERE id = ?`
+   - PostgreSQL MVCC handles concurrent access safely without application-level locks
 
 **IMPORTANT**: When adding new review operations, always:
-- Call `InvalidateAllProductCache` after DB write (return error if it fails)
-- Trust the database trigger for rating calculation
+- Call `InvalidateAllProductCache` after DB write (log warning if it fails, don't fail the operation)
+- Publish event to NATS for worker to calculate rating asynchronously
 - No application-level locking needed - database handles concurrency
+- Accept temporary rating staleness in exchange for availability (eventual consistency)
 
 #### Caching Strategy
 
@@ -213,7 +215,7 @@ Events are published in goroutines (fire-and-forget) in `internal/usecase/review
 s.publishEvent(ctx, "review.created", review)
 ```
 
-The notifier service (`cmd/notifier/main.go`) demonstrates consumption pattern.
+The rating-worker service (`cmd/rating-worker/main.go`) consumes these events and processes rating calculations. The notifier service (`cmd/notifier/main.go`) demonstrates an alternative consumption pattern for notifications.
 
 ### API Design Patterns
 
@@ -287,7 +289,7 @@ When adding new packages, ensure imports use this path.
 **Comments should explain WHY, not HOW**:
 - The code itself should be self-explanatory about WHAT it does
 - Comments should explain the reasoning, context, or business decisions behind the code
-- Good: `// Use database trigger instead of application code to ensure atomicity under high concurrency`
+- Good: `// Async worker handles calculation to avoid blocking write operations and ensure retry capability`
 - Bad: `// Loop through reviews and calculate average`
 - Good: `// Fire-and-forget pattern to avoid blocking API response while ensuring event delivery`
 - Bad: `// Publish event in goroutine`
@@ -337,7 +339,7 @@ Annotations format:
 
 ## Common Gotchas
 
-1. **Don't manually calculate average_rating** - The database trigger does this atomically
+1. **Don't manually calculate average_rating** - The rating-worker service does this asynchronously via NATS events
 2. **Always invalidate cache after write operations** - Stale cache causes inconsistencies
 3. **Database handles concurrency** - No service-level mutexes needed; PostgreSQL MVCC + optimistic locking handle concurrent access safely
 4. **Product updates use optimistic locking** - Check `version` field to prevent conflicts
@@ -347,7 +349,7 @@ Annotations format:
 8. **UUID validation** - Use `request.GetUUIDParam()` helper to parse and validate UUIDs
 9. **Pagination** - Default limit is 20, max is 100 (enforced in handlers)
 10. **Migrations require running services** - Start docker-compose before running migrations
-11. **Product version conflicts** - Product.version increments on review changes (database trigger). Product updates can fail with ErrConflict due to concurrent review activity, not just concurrent product updates. This is by design - the product DID change (rating changed).
+11. **Product version conflicts** - Product.version increments when rating-worker updates average_rating. Product updates can fail with ErrConflict due to concurrent rating calculation, not just concurrent product updates. This is by design - the product DID change (rating changed).
 
 ## Debugging
 
