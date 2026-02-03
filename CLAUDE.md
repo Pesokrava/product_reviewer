@@ -159,12 +159,15 @@ The system uses a **two-layer approach** to ensure average_rating is eventually 
    - Cache invalidation is **non-fatal** - write operations succeed even if Redis is down
 
 2. **Layer 2: Asynchronous Rating Worker (Source of Truth)**:
-   - Review service publishes events to NATS (`reviews.events` subject) in fire-and-forget pattern
-   - Rating worker (`cmd/rating-worker/main.go`) subscribes to these events
+   - Review service publishes events to NATS JetStream (`reviews.events` subject)
+   - JetStream provides persistence (survives restarts) and automatic redelivery
+   - Rating worker (`cmd/rating-worker/main.go`) subscribes to durable consumer
    - Worker debounces updates (1-second window) to batch multiple events for the same product
-   - Exponential backoff retry (3 attempts) handles transient database failures
+   - Exponential backoff retry (3 attempts: 1s, 2s, 4s) handles transient database failures
+   - After 3 failed attempts, message is discarded (next review event will recalculate)
    - Worker executes SQL: `UPDATE products SET average_rating = ..., version = version + 1 WHERE id = ?`
    - PostgreSQL MVCC handles concurrent access safely without application-level locks
+   - Rating calculation is idempotent and self-correcting (full recalculation from DB state)
 
 **IMPORTANT**: When adding new review operations, always:
 - Call `InvalidateAllProductCache` after DB write (log warning if it fails, don't fail the operation)
@@ -203,19 +206,30 @@ Cache invalidation happens in `internal/repository/cache/redis.go`:
 
 #### Event System
 
-NATS pub/sub for asynchronous notifications:
+NATS JetStream for durable, reliable event delivery:
 
-- **Publisher**: `internal/delivery/events/publisher.go`
-- **Consumer**: `internal/delivery/events/consumer.go`
+- **Publisher**: `internal/delivery/events/publisher.go` (JetStream publisher with ack)
+- **Stream Config**: `internal/delivery/events/stream.go` (stream and consumer setup)
+- **Consumer**: Rating worker (`cmd/rating-worker/main.go`) uses durable pull consumer
 - **Subject**: `reviews.events`
 - **Event Types**: `review.created`, `review.updated`, `review.deleted`
 
-Events are published in goroutines (fire-and-forget) in `internal/usecase/review/service.go`:
+**JetStream Features:**
+- **Persistence**: Messages survive worker restarts (file storage)
+- **Redelivery**: Automatic retry with exponential backoff (1s, 2s, 4s)
+- **Durability**: Pull consumer with durable name `rating-worker`
+- **Acknowledgment**: Explicit ack required (AckExplicitPolicy)
+- **MaxDeliver**: 3 attempts then discard (acceptable due to idempotent calculation)
+
+Events are published with acknowledgment in `internal/usecase/review/service.go`:
 ```go
 s.publishEvent(ctx, "review.created", review)
 ```
 
-The rating-worker service (`cmd/rating-worker/main.go`) consumes these events and processes rating calculations. The notifier service (`cmd/notifier/main.go`) demonstrates an alternative consumption pattern for notifications.
+The rating-worker service consumes events, processes rating calculations, and acknowledges successful processing. The notifier service (`cmd/notifier/main.go`) demonstrates an alternative consumption pattern for notifications.
+
+**Why no Dead Letter Queue?**
+Rating calculation is idempotent and based on database state (full recalculation). If an event fails after 3 attempts, it's discarded because the next review event will trigger a full recalculation that corrects any missed updates.
 
 ### API Design Patterns
 
