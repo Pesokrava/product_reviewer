@@ -25,14 +25,10 @@ func NewProductRepository(db *sqlx.DB) *ProductRepository {
 // Create creates a new product
 func (r *ProductRepository) Create(ctx context.Context, product *domain.Product) error {
 	query := `
-		INSERT INTO products (name, description, price, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO products (name, description, price)
+		VALUES ($1, $2, $3)
 		RETURNING id, average_rating, version, created_at, updated_at
 	`
-
-	now := time.Now()
-	product.CreatedAt = now
-	product.UpdatedAt = now
 
 	err := r.db.QueryRowxContext(
 		ctx,
@@ -40,8 +36,6 @@ func (r *ProductRepository) Create(ctx context.Context, product *domain.Product)
 		product.Name,
 		product.Description,
 		product.Price,
-		product.CreatedAt,
-		product.UpdatedAt,
 	).Scan(
 		&product.ID,
 		&product.AverageRating,

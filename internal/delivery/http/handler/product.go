@@ -27,16 +27,16 @@ func NewProductHandler(service *product.Service, log *logger.Logger) *ProductHan
 
 // CreateProductRequest represents the request body for creating a product
 type CreateProductRequest struct {
-	Name        string   `json:"name" validate:"required,min=1,max=255"`
-	Description *string  `json:"description,omitempty"`
-	Price       float64  `json:"price" validate:"required,gte=0"`
+	Name        string  `json:"name" validate:"required,min=1,max=255"`
+	Description *string `json:"description,omitempty"`
+	Price       float64 `json:"price" validate:"required,gte=0"`
 }
 
 // UpdateProductRequest represents the request body for updating a product
 type UpdateProductRequest struct {
-	Name        string   `json:"name" validate:"required,min=1,max=255"`
-	Description *string  `json:"description,omitempty"`
-	Price       float64  `json:"price" validate:"required,gte=0"`
+	Name        string  `json:"name" validate:"required,min=1,max=255"`
+	Description *string `json:"description,omitempty"`
+	Price       float64 `json:"price" validate:"required,gte=0"`
 }
 
 // Create handles POST /api/v1/products

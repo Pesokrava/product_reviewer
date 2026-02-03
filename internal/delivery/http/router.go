@@ -55,7 +55,9 @@ func (rt *Router) Setup() http.Handler {
 	}))
 
 	r.Get("/health", rt.healthCheck)
-	r.Get("/swagger/*", httpSwagger.WrapHandler)
+	// Redirect /docs to /docs/index.html to ensure the Swagger UI is served correctly
+	r.Get("/docs", http.RedirectHandler("/docs/index.html", http.StatusMovedPermanently).ServeHTTP)
+	r.Get("/docs/*", httpSwagger.WrapHandler)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/products", func(r chi.Router) {

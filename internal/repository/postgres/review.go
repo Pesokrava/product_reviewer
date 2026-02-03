@@ -36,14 +36,10 @@ func (r *ReviewRepository) Create(ctx context.Context, review *domain.Review) er
 	}
 
 	query := `
-		INSERT INTO reviews (product_id, first_name, last_name, review_text, rating, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO reviews (product_id, first_name, last_name, review_text, rating)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`
-
-	now := time.Now()
-	review.CreatedAt = now
-	review.UpdatedAt = now
 
 	err = r.db.QueryRowxContext(
 		ctx,
@@ -53,14 +49,11 @@ func (r *ReviewRepository) Create(ctx context.Context, review *domain.Review) er
 		review.LastName,
 		review.ReviewText,
 		review.Rating,
-		review.CreatedAt,
-		review.UpdatedAt,
 	).Scan(
 		&review.ID,
 		&review.CreatedAt,
 		&review.UpdatedAt,
 	)
-
 	if err != nil {
 		return err
 	}
@@ -128,7 +121,6 @@ func (r *ReviewRepository) Update(ctx context.Context, review *domain.Review) er
 		review.UpdatedAt,
 		review.ID,
 	).Scan(&review.UpdatedAt)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.ErrNotFound
