@@ -68,7 +68,11 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("Failed to subscribe to NATS subject", err)
 	}
-	defer sub.Unsubscribe()
+	defer func() {
+		if err := sub.Unsubscribe(); err != nil {
+			appLogger.Error("Failed to unsubscribe from NATS", err)
+		}
+	}()
 
 	appLogger.WithFields(map[string]interface{}{
 		"subject": subject,
