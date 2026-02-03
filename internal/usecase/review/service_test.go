@@ -154,11 +154,12 @@ func TestService_Create_CacheInvalidationFailure(t *testing.T) {
 
 	mockRepo.On("Create", mock.Anything, review).Return(nil)
 	mockCache.On("InvalidateAllProductCache", mock.Anything, productID).Return(assert.AnError)
+	mockPublisher.On("Publish", mock.Anything, "reviews.events", mock.Anything).Return(nil)
 
+	// Cache failure should not prevent operation from succeeding
 	err := service.Create(context.Background(), review)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cache invalidation failed")
+	assert.NoError(t, err, "Operation should succeed even when cache fails")
 	mockRepo.AssertExpectations(t)
 	mockCache.AssertExpectations(t)
 }
@@ -328,6 +329,75 @@ func TestService_Delete_Success(t *testing.T) {
 	err := service.Delete(context.Background(), reviewID)
 
 	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+	mockCache.AssertExpectations(t)
+}
+
+func TestService_Update_CacheInvalidationFailure(t *testing.T) {
+	mockRepo := new(MockReviewRepository)
+	mockCache := new(MockRedisCache)
+	mockPublisher := new(MockEventPublisher)
+	log := logger.New("test")
+	service := NewService(mockRepo, mockCache, mockPublisher, log)
+
+	reviewID := uuid.New()
+	productID := uuid.New()
+	existingReview := &domain.Review{
+		ID:         reviewID,
+		ProductID:  productID,
+		FirstName:  "John",
+		LastName:   "Doe",
+		ReviewText: "Great product!",
+		Rating:     5,
+	}
+	updatedReview := &domain.Review{
+		ID:         reviewID,
+		FirstName:  "John",
+		LastName:   "Doe",
+		ReviewText: "Updated review text",
+		Rating:     4,
+	}
+
+	mockRepo.On("GetByID", mock.Anything, reviewID).Return(existingReview, nil)
+	mockRepo.On("Update", mock.Anything, updatedReview).Return(nil)
+	mockCache.On("InvalidateAllProductCache", mock.Anything, productID).Return(assert.AnError)
+	mockPublisher.On("Publish", mock.Anything, "reviews.events", mock.Anything).Return(nil)
+
+	// Cache failure should not prevent operation from succeeding
+	err := service.Update(context.Background(), updatedReview)
+
+	assert.NoError(t, err, "Operation should succeed even when cache fails")
+	mockRepo.AssertExpectations(t)
+	mockCache.AssertExpectations(t)
+}
+
+func TestService_Delete_CacheInvalidationFailure(t *testing.T) {
+	mockRepo := new(MockReviewRepository)
+	mockCache := new(MockRedisCache)
+	mockPublisher := new(MockEventPublisher)
+	log := logger.New("test")
+	service := NewService(mockRepo, mockCache, mockPublisher, log)
+
+	reviewID := uuid.New()
+	productID := uuid.New()
+	existingReview := &domain.Review{
+		ID:         reviewID,
+		ProductID:  productID,
+		FirstName:  "John",
+		LastName:   "Doe",
+		ReviewText: "Great product!",
+		Rating:     5,
+	}
+
+	mockRepo.On("GetByID", mock.Anything, reviewID).Return(existingReview, nil)
+	mockRepo.On("Delete", mock.Anything, reviewID).Return(nil)
+	mockCache.On("InvalidateAllProductCache", mock.Anything, productID).Return(assert.AnError)
+	mockPublisher.On("Publish", mock.Anything, "reviews.events", mock.Anything).Return(nil)
+
+	// Cache failure should not prevent operation from succeeding
+	err := service.Delete(context.Background(), reviewID)
+
+	assert.NoError(t, err, "Operation should succeed even when cache fails")
 	mockRepo.AssertExpectations(t)
 	mockCache.AssertExpectations(t)
 }

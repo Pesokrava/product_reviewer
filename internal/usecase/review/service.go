@@ -3,7 +3,6 @@ package review
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -71,10 +70,13 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 		return err
 	}
 
-	// Stale cache would show incorrect ratings and review lists
+	// Invalidate cache to prevent stale data
+	// Non-fatal: if cache is down, accept temporary staleness over API unavailability
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.Error("Failed to invalidate cache", err)
-		return fmt.Errorf("cache invalidation failed: %w", err)
+		s.logger.WithFields(map[string]interface{}{
+			"product_id": review.ProductID,
+			"error":      err.Error(),
+		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
 	}
 
 	s.publishEvent(ctx, "review.created", review)
@@ -165,9 +167,13 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 		return err
 	}
 
+	// Invalidate cache to prevent stale data
+	// Non-fatal: if cache is down, accept temporary staleness over API unavailability
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.Error("Failed to invalidate cache", err)
-		return fmt.Errorf("cache invalidation failed: %w", err)
+		s.logger.WithFields(map[string]interface{}{
+			"product_id": review.ProductID,
+			"error":      err.Error(),
+		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
 	}
 
 	s.publishEvent(ctx, "review.updated", review)
@@ -195,9 +201,13 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
+	// Invalidate cache to prevent stale data
+	// Non-fatal: if cache is down, accept temporary staleness over API unavailability
 	if err := s.cache.InvalidateAllProductCache(ctx, review.ProductID); err != nil {
-		s.logger.Error("Failed to invalidate cache", err)
-		return fmt.Errorf("cache invalidation failed: %w", err)
+		s.logger.WithFields(map[string]interface{}{
+			"product_id": review.ProductID,
+			"error":      err.Error(),
+		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
 	}
 
 	s.publishEvent(ctx, "review.deleted", review)
