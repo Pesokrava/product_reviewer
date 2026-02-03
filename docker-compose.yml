@@ -105,6 +105,30 @@ services:
     networks:
       - product-reviews-network
 
+  rating-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: rating-worker
+    container_name: product-reviews-rating-worker
+    environment:
+      - ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=product_reviews
+      - DB_SSLMODE=disable
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - product-reviews-network
+
 volumes:
   postgres_data:
   redis_data:

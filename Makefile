@@ -12,7 +12,7 @@ help:
 	@echo "  make install-dev-tools - Install Air and Delve for hot reload and debugging"
 	@echo ""
 	@echo "Build & Test:"
-	@echo "  make build            - Build the API and notifier services"
+	@echo "  make build            - Build API, notifier, and rating-worker services"
 	@echo "  make test             - Run unit tests"
 	@echo "  make test-integration - Run integration tests"
 	@echo "  make lint             - Run golangci-lint"
@@ -20,7 +20,7 @@ help:
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-build     - Build Docker images"
-	@echo "  make docker-up        - Start all services with docker-compose"
+	@echo "  make docker-up        - Start all services (api, notifier, rating-worker)"
 	@echo "  make docker-down      - Stop all services"
 	@echo ""
 	@echo "Database:"
@@ -36,6 +36,8 @@ build:
 	@go build -o bin/api cmd/api/main.go
 	@echo "Building notifier service..."
 	@go build -o bin/notifier cmd/notifier/main.go
+	@echo "Building rating-worker service..."
+	@go build -o bin/rating-worker cmd/rating-worker/main.go
 	@echo "Build complete!"
 
 test:
@@ -135,8 +137,7 @@ dev-db-setup:
 		echo "Database created successfully!"; \
 	fi
 	@echo "Running migrations..."
-	@docker-compose exec -T postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000001_create_products_table.up.sql > /dev/null 2>&1 || echo "Migration 1 already applied or failed"
-	@docker-compose exec -T postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000002_create_reviews_table.up.sql > /dev/null 2>&1 || echo "Migration 2 already applied or failed"
+	@docker-compose exec -T postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000001_create_schema.up.sql > /dev/null 2>&1 || echo "Migration already applied or failed"
 	@echo "Database setup complete!"
 	@echo "Verifying database..."
 	@docker-compose exec -T postgres psql -U postgres -d product_reviews -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"

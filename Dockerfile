@@ -19,6 +19,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /bin/api ./cmd/ap
 # Build notifier service
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /bin/notifier ./cmd/notifier
 
+# Build rating-worker service
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /bin/rating-worker ./cmd/rating-worker
+
 # API service stage
 FROM alpine:3.19 AS api
 
@@ -43,3 +46,14 @@ WORKDIR /root/
 COPY --from=builder /bin/notifier .
 
 CMD ["./notifier"]
+
+# Rating-worker service stage
+FROM alpine:3.19 AS rating-worker
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /bin/rating-worker .
+
+CMD ["./rating-worker"]
