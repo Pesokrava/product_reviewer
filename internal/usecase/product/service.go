@@ -13,17 +13,19 @@ import (
 
 // Service handles product business logic
 type Service struct {
-	repo     domain.ProductRepository
-	validate *validator.Validate
-	logger   *logger.Logger
+	repo       domain.ProductRepository
+	reviewRepo domain.ReviewRepository
+	validate   *validator.Validate
+	logger     *logger.Logger
 }
 
 // NewService creates a new product service
-func NewService(repo domain.ProductRepository, log *logger.Logger) *Service {
+func NewService(repo domain.ProductRepository, reviewRepo domain.ReviewRepository, log *logger.Logger) *Service {
 	return &Service{
-		repo:     repo,
-		validate: pkgValidator.Get(),
-		logger:   log,
+		repo:       repo,
+		reviewRepo: reviewRepo,
+		validate:   pkgValidator.Get(),
+		logger:     log,
 	}
 }
 
@@ -106,8 +108,18 @@ func (s *Service) Update(ctx context.Context, product *domain.Product) error {
 	return nil
 }
 
-// Delete soft-deletes a product
+// Delete soft-deletes a product and cascades to all its reviews
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	// Cascade soft-delete all reviews for this product first
+	if err := s.reviewRepo.DeleteByProductID(ctx, id); err != nil {
+		s.logger.WithFields(map[string]any{
+			"product_id": id,
+			"error":      err.Error(),
+		}).Error("Failed to cascade delete reviews", err)
+		return err
+	}
+
+	// Then soft-delete the product
 	if err := s.repo.Delete(ctx, id); err != nil {
 		s.logger.Error("Failed to delete product", err)
 		return err
@@ -115,7 +127,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 
 	s.logger.WithFields(map[string]any{
 		"product_id": id,
-	}).Info("Product deleted successfully")
+	}).Info("Product and reviews deleted successfully")
 
 	return nil
 }

@@ -17,7 +17,10 @@ const (
 
 	// Retry configuration
 	maxRetries     = 3
-	initialBackoff = 100 * time.Millisecond
+	initialBackoff = 1 * time.Second
+
+	// Maximum concurrent rating calculations to prevent DB overload
+	maxConcurrentCalculations = 10
 )
 
 // ReviewEvent represents a review event from NATS
@@ -39,6 +42,9 @@ type RatingWorker struct {
 	wg             sync.WaitGroup
 	ctx            context.Context
 	cancel         context.CancelFunc
+
+	// Concurrency control to prevent DB overload
+	concurrencySem chan struct{}
 }
 
 type pendingUpdate struct {
@@ -58,6 +64,7 @@ func NewRatingWorker(calculator *Calculator, logger *logger.Logger) *RatingWorke
 		shutdownCh:     make(chan struct{}),
 		ctx:            ctx,
 		cancel:         cancel,
+		concurrencySem: make(chan struct{}, maxConcurrentCalculations),
 	}
 }
 
@@ -140,6 +147,15 @@ func (w *RatingWorker) processUpdate(productID uuid.UUID) {
 	w.mu.Lock()
 	delete(w.pendingUpdates, productID)
 	w.mu.Unlock()
+
+	// Acquire semaphore to limit concurrent calculations
+	select {
+	case w.concurrencySem <- struct{}{}:
+		defer func() { <-w.concurrencySem }()
+	case <-w.ctx.Done():
+		w.logger.Info("Worker context cancelled, skipping rating update")
+		return
+	}
 
 	w.logger.WithFields(map[string]any{
 		"product_id": productID.String(),

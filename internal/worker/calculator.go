@@ -26,19 +26,23 @@ func NewCalculator(db *sqlx.DB, logger *logger.Logger) *Calculator {
 }
 
 // CalculateAndUpdate recalculates average rating for a product and updates the database
-// Uses full recalculation approach for simplicity and self-correction
+// Uses most recent reviews (up to 10,000) for performance on products with many reviews
 func (c *Calculator) CalculateAndUpdate(ctx context.Context, productID uuid.UUID) error {
 	query := `
 		UPDATE products
 		SET
 			average_rating = COALESCE(
 				(SELECT ROUND(AVG(rating)::numeric, 1)
-				 FROM reviews
-				 WHERE product_id = $1 AND deleted_at IS NULL),
+				 FROM (
+					SELECT rating
+					FROM reviews
+					WHERE product_id = $1 AND deleted_at IS NULL
+					ORDER BY created_at DESC
+					LIMIT 10000
+				 ) recent_reviews),
 				0
 			),
-			updated_at = $2,
-			version = version + 1
+			updated_at = $2
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 

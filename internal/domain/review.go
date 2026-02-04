@@ -13,7 +13,7 @@ type Review struct {
 	ProductID  uuid.UUID  `json:"product_id" db:"product_id" validate:"required"`
 	FirstName  string     `json:"first_name" db:"first_name" validate:"required,min=1,max=100"`
 	LastName   string     `json:"last_name" db:"last_name" validate:"required,min=1,max=100"`
-	ReviewText string     `json:"review_text" db:"review_text" validate:"required,min=1"`
+	ReviewText string     `json:"review_text" db:"review_text" validate:"required,min=1,max=5000"`
 	Rating     int        `json:"rating" db:"rating" validate:"required,min=1,max=5"`
 	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at" db:"updated_at"`
@@ -36,6 +36,9 @@ type ReviewRepository interface {
 
 	// Delete soft-deletes a review
 	Delete(ctx context.Context, id uuid.UUID) error
+
+	// DeleteByProductID soft-deletes all reviews for a product (cascade delete)
+	DeleteByProductID(ctx context.Context, productID uuid.UUID) error
 
 	// CountByProductID returns the total number of reviews for a product (excludes soft-deleted)
 	CountByProductID(ctx context.Context, productID uuid.UUID) (int, error)

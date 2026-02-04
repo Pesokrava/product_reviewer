@@ -48,6 +48,11 @@ func (m *MockReviewRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockReviewRepository) DeleteByProductID(ctx context.Context, productID uuid.UUID) error {
+	args := m.Called(ctx, productID)
+	return args.Error(0)
+}
+
 func (m *MockReviewRepository) CountByProductID(ctx context.Context, productID uuid.UUID) (int, error) {
 	args := m.Called(ctx, productID)
 	return args.Int(0), args.Error(1)
@@ -58,16 +63,16 @@ type MockRedisCache struct {
 	mock.Mock
 }
 
-func (m *MockRedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
+func (m *MockRedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error) {
 	args := m.Called(ctx, productID, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, 0, args.Error(2)
 	}
-	return args.Get(0).([]*domain.Review), args.Error(1)
+	return args.Get(0).([]*domain.Review), args.Int(1), args.Error(2)
 }
 
-func (m *MockRedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error {
-	args := m.Called(ctx, productID, limit, offset, reviews)
+func (m *MockRedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review, total int) error {
+	args := m.Called(ctx, productID, limit, offset, reviews, total)
 	return args.Error(0)
 }
 
@@ -223,8 +228,7 @@ func TestService_GetByProductID_CacheHit(t *testing.T) {
 	}
 	expectedTotal := 2
 
-	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(expectedReviews, nil)
-	mockRepo.On("CountByProductID", mock.Anything, productID).Return(expectedTotal, nil)
+	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(expectedReviews, expectedTotal, nil)
 
 	reviews, total, err := service.GetByProductID(context.Background(), productID, 20, 0)
 
@@ -232,8 +236,8 @@ func TestService_GetByProductID_CacheHit(t *testing.T) {
 	assert.Equal(t, expectedReviews, reviews)
 	assert.Equal(t, expectedTotal, total)
 	mockCache.AssertExpectations(t)
-	mockRepo.AssertExpectations(t)
 	mockRepo.AssertNotCalled(t, "GetByProductID")
+	mockRepo.AssertNotCalled(t, "CountByProductID")
 }
 
 func TestService_GetByProductID_CacheMiss(t *testing.T) {
@@ -250,10 +254,10 @@ func TestService_GetByProductID_CacheMiss(t *testing.T) {
 	}
 	expectedTotal := 2
 
-	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(nil, assert.AnError)
+	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(nil, 0, assert.AnError)
 	mockRepo.On("GetByProductID", mock.Anything, productID, 20, 0).Return(expectedReviews, nil)
 	mockRepo.On("CountByProductID", mock.Anything, productID).Return(expectedTotal, nil)
-	mockCache.On("SetReviewsList", mock.Anything, productID, 20, 0, expectedReviews).Return(nil)
+	mockCache.On("SetReviewsList", mock.Anything, productID, 20, 0, expectedReviews, expectedTotal).Return(nil)
 
 	reviews, total, err := service.GetByProductID(context.Background(), productID, 20, 0)
 

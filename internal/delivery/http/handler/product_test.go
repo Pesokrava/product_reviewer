@@ -60,10 +60,56 @@ func (m *MockProductRepository) Count(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
+// MockReviewRepository is a mock implementation of domain.ReviewRepository
+type MockReviewRepository struct {
+	mock.Mock
+}
+
+func (m *MockReviewRepository) Create(ctx context.Context, review *domain.Review) error {
+	args := m.Called(ctx, review)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Review), args.Error(1)
+}
+
+func (m *MockReviewRepository) GetByProductID(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
+	args := m.Called(ctx, productID, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Review), args.Error(1)
+}
+
+func (m *MockReviewRepository) Update(ctx context.Context, review *domain.Review) error {
+	args := m.Called(ctx, review)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) DeleteByProductID(ctx context.Context, productID uuid.UUID) error {
+	args := m.Called(ctx, productID)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) CountByProductID(ctx context.Context, productID uuid.UUID) (int, error) {
+	args := m.Called(ctx, productID)
+	return args.Int(0), args.Error(1)
+}
+
 func TestProductHandler_Create_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	requestBody := CreateProductRequest{
@@ -93,7 +139,7 @@ func TestProductHandler_Create_Success(t *testing.T) {
 func TestProductHandler_Create_InvalidJSON(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader([]byte("invalid json")))
@@ -111,7 +157,7 @@ func TestProductHandler_Create_InvalidJSON(t *testing.T) {
 func TestProductHandler_Create_ValidationError(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	requestBody := CreateProductRequest{
@@ -132,7 +178,7 @@ func TestProductHandler_Create_ValidationError(t *testing.T) {
 func TestProductHandler_Create_RepositoryError(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	requestBody := CreateProductRequest{
@@ -156,7 +202,7 @@ func TestProductHandler_Create_RepositoryError(t *testing.T) {
 func TestProductHandler_GetByID_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -191,7 +237,7 @@ func TestProductHandler_GetByID_Success(t *testing.T) {
 func TestProductHandler_GetByID_InvalidUUID(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/products/invalid-uuid", nil)
@@ -213,7 +259,7 @@ func TestProductHandler_GetByID_InvalidUUID(t *testing.T) {
 func TestProductHandler_GetByID_NotFound(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -236,7 +282,7 @@ func TestProductHandler_GetByID_NotFound(t *testing.T) {
 func TestProductHandler_List_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	products := []*domain.Product{
@@ -274,7 +320,7 @@ func TestProductHandler_List_Success(t *testing.T) {
 func TestProductHandler_List_WithPagination(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	products := []*domain.Product{}
@@ -301,7 +347,7 @@ func TestProductHandler_List_WithPagination(t *testing.T) {
 func TestProductHandler_List_RepositoryError(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/products", nil)
@@ -318,7 +364,7 @@ func TestProductHandler_List_RepositoryError(t *testing.T) {
 func TestProductHandler_Update_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -357,7 +403,7 @@ func TestProductHandler_Update_Success(t *testing.T) {
 func TestProductHandler_Update_InvalidUUID(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	requestBody := UpdateProductRequest{
@@ -382,7 +428,7 @@ func TestProductHandler_Update_InvalidUUID(t *testing.T) {
 func TestProductHandler_Update_InvalidJSON(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -403,7 +449,7 @@ func TestProductHandler_Update_InvalidJSON(t *testing.T) {
 func TestProductHandler_Update_NotFound(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -433,7 +479,7 @@ func TestProductHandler_Update_NotFound(t *testing.T) {
 func TestProductHandler_Update_Conflict(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -469,8 +515,9 @@ func TestProductHandler_Update_Conflict(t *testing.T) {
 
 func TestProductHandler_Delete_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, mockReviewRepo, log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -482,18 +529,20 @@ func TestProductHandler_Delete_Success(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
+	mockReviewRepo.On("DeleteByProductID", mock.Anything, productID).Return(nil)
 	mockRepo.On("Delete", mock.Anything, productID).Return(nil)
 
 	handler.Delete(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	mockRepo.AssertExpectations(t)
+	mockReviewRepo.AssertExpectations(t)
 }
 
 func TestProductHandler_Delete_InvalidUUID(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
 	handler := NewProductHandler(service, log)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/products/invalid-uuid", nil)
@@ -510,8 +559,9 @@ func TestProductHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestProductHandler_Delete_NotFound(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := product.NewService(mockRepo, log)
+	service := product.NewService(mockRepo, mockReviewRepo, log)
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
@@ -523,10 +573,10 @@ func TestProductHandler_Delete_NotFound(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockRepo.On("Delete", mock.Anything, productID).Return(domain.ErrNotFound)
+	mockReviewRepo.On("DeleteByProductID", mock.Anything, productID).Return(domain.ErrNotFound)
 
 	handler.Delete(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
-	mockRepo.AssertExpectations(t)
+	mockReviewRepo.AssertExpectations(t)
 }

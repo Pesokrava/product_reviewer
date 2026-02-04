@@ -20,8 +20,8 @@ type EventPublisher interface {
 
 // ReviewCache defines the interface for review caching operations
 type ReviewCache interface {
-	GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error)
-	SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error
+	GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error)
+	SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review, total int) error
 	InvalidateAllProductCache(ctx context.Context, productID uuid.UUID) error
 }
 
@@ -105,7 +105,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, er
 	return review, nil
 }
 
-// GetByProductID retrieves reviews for a product with caching
+// GetByProductID retrieves reviews for a product with caching (includes total count in cache)
 func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -114,17 +114,14 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		offset = 0
 	}
 
-	reviews, err := s.cache.GetReviewsList(ctx, productID, limit, offset)
+	// Try cache first - includes total count
+	reviews, total, err := s.cache.GetReviewsList(ctx, productID, limit, offset)
 	if err == nil {
 		s.logger.Debugf("Cache hit for product %s reviews (limit=%d, offset=%d)", productID, limit, offset)
-		total, err := s.repo.CountByProductID(ctx, productID)
-		if err != nil {
-			s.logger.Error("Failed to count reviews", err)
-			return nil, 0, err
-		}
 		return reviews, total, nil
 	}
 
+	// Cache miss - fetch from database
 	s.logger.Debugf("Cache miss for product %s reviews (limit=%d, offset=%d)", productID, limit, offset)
 	reviews, err = s.repo.GetByProductID(ctx, productID, limit, offset)
 	if err != nil {
@@ -132,13 +129,14 @@ func (s *Service) GetByProductID(ctx context.Context, productID uuid.UUID, limit
 		return nil, 0, err
 	}
 
-	total, err := s.repo.CountByProductID(ctx, productID)
+	total, err = s.repo.CountByProductID(ctx, productID)
 	if err != nil {
 		s.logger.Error("Failed to count reviews", err)
 		return nil, 0, err
 	}
 
-	if err := s.cache.SetReviewsList(ctx, productID, limit, offset, reviews); err != nil {
+	// Cache both reviews and total count together
+	if err := s.cache.SetReviewsList(ctx, productID, limit, offset, reviews, total); err != nil {
 		s.logger.Warnf("Failed to cache reviews for product %s (limit=%d, offset=%d): %v", productID, limit, offset, err)
 	}
 

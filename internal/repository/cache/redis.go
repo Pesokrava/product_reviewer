@@ -12,6 +12,12 @@ import (
 	"github.com/Pesokrava/product_reviewer/internal/domain"
 )
 
+// CachedReviewsList contains reviews and total count for caching
+type CachedReviewsList struct {
+	Reviews []*domain.Review `json:"reviews"`
+	Total   int              `json:"total"`
+}
+
 // RedisCache implements caching for products and reviews
 type RedisCache struct {
 	client           *redis.Client
@@ -69,31 +75,36 @@ func (c *RedisCache) productCacheKeysSet(productID uuid.UUID) string {
 	return fmt.Sprintf("product:%s:cache_keys", productID.String())
 }
 
-// GetReviewsList retrieves cached reviews list for a product
-func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
+// GetReviewsList retrieves cached reviews list and total count for a product
+func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error) {
 	key := c.reviewsListKey(productID, limit, offset)
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, domain.ErrNotFound
+			return nil, 0, domain.ErrNotFound
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
-	var reviews []*domain.Review
-	if err := json.Unmarshal([]byte(val), &reviews); err != nil {
-		return nil, err
+	var cached CachedReviewsList
+	if err := json.Unmarshal([]byte(val), &cached); err != nil {
+		return nil, 0, err
 	}
 
-	return reviews, nil
+	return cached.Reviews, cached.Total, nil
 }
 
-// SetReviewsList stores reviews list in cache and tracks the key in a SET
-func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error {
+// SetReviewsList stores reviews list and total count in cache and tracks the key in a SET
+func (c *RedisCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review, total int) error {
 	key := c.reviewsListKey(productID, limit, offset)
 	trackingKey := c.productCacheKeysSet(productID)
 
-	data, err := json.Marshal(reviews)
+	cached := CachedReviewsList{
+		Reviews: reviews,
+		Total:   total,
+	}
+
+	data, err := json.Marshal(cached)
 	if err != nil {
 		return err
 	}

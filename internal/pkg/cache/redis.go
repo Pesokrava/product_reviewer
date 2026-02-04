@@ -34,7 +34,7 @@ func WaitForRedis(cfg *config.Config, maxRetries int, retryDelay time.Duration) 
 	var client *redis.Client
 	var err error
 
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		client, err = NewRedisClient(cfg)
 		if err == nil {
 			return client, nil

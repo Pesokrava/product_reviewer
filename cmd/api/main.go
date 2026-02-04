@@ -93,7 +93,7 @@ func main() {
 		cfg.Cache.ReviewsListTTL,
 	)
 
-	productService := product.NewService(productRepo, appLogger)
+	productService := product.NewService(productRepo, reviewRepo, appLogger)
 	reviewService := review.NewService(reviewRepo, redisCache, publisher, appLogger)
 
 	productHandler := handler.NewProductHandler(productService, appLogger)

@@ -156,6 +156,22 @@ func (r *ReviewRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// DeleteByProductID soft-deletes all reviews for a product (cascade delete)
+func (r *ReviewRepository) DeleteByProductID(ctx context.Context, productID uuid.UUID) error {
+	query := `
+		UPDATE reviews
+		SET deleted_at = $1
+		WHERE product_id = $2 AND deleted_at IS NULL
+	`
+
+	_, err := r.db.ExecContext(ctx, query, time.Now(), productID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CountByProductID returns the total number of reviews for a product
 func (r *ReviewRepository) CountByProductID(ctx context.Context, productID uuid.UUID) (int, error) {
 	query := `SELECT COUNT(*) FROM reviews WHERE product_id = $1 AND deleted_at IS NULL`

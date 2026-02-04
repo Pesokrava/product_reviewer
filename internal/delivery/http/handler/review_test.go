@@ -19,62 +19,21 @@ import (
 	"github.com/Pesokrava/product_reviewer/internal/usecase/review"
 )
 
-// MockReviewRepository is a mock implementation of domain.ReviewRepository
-type MockReviewRepository struct {
-	mock.Mock
-}
-
-func (m *MockReviewRepository) Create(ctx context.Context, rev *domain.Review) error {
-	args := m.Called(ctx, rev)
-	return args.Error(0)
-}
-
-func (m *MockReviewRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.Review), args.Error(1)
-}
-
-func (m *MockReviewRepository) GetByProductID(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
-	args := m.Called(ctx, productID, limit, offset)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*domain.Review), args.Error(1)
-}
-
-func (m *MockReviewRepository) Update(ctx context.Context, rev *domain.Review) error {
-	args := m.Called(ctx, rev)
-	return args.Error(0)
-}
-
-func (m *MockReviewRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockReviewRepository) CountByProductID(ctx context.Context, productID uuid.UUID) (int, error) {
-	args := m.Called(ctx, productID)
-	return args.Int(0), args.Error(1)
-}
-
 // MockReviewCache is a mock implementation of review.ReviewCache
 type MockReviewCache struct {
 	mock.Mock
 }
 
-func (m *MockReviewCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
+func (m *MockReviewCache) GetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, int, error) {
 	args := m.Called(ctx, productID, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, 0, args.Error(2)
 	}
-	return args.Get(0).([]*domain.Review), args.Error(1)
+	return args.Get(0).([]*domain.Review), args.Int(1), args.Error(2)
 }
 
-func (m *MockReviewCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review) error {
-	args := m.Called(ctx, productID, limit, offset, reviews)
+func (m *MockReviewCache) SetReviewsList(ctx context.Context, productID uuid.UUID, limit, offset int, reviews []*domain.Review, total int) error {
+	args := m.Called(ctx, productID, limit, offset, reviews, total)
 	return args.Error(0)
 }
 
@@ -512,10 +471,10 @@ func TestReviewHandler_GetByProductID_Success(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	// Cache miss scenario
-	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(nil, fmt.Errorf("cache miss"))
+	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(nil, 0, fmt.Errorf("cache miss"))
 	mockRepo.On("GetByProductID", mock.Anything, productID, 20, 0).Return(reviews, nil)
 	mockRepo.On("CountByProductID", mock.Anything, productID).Return(2, nil)
-	mockCache.On("SetReviewsList", mock.Anything, productID, 20, 0, reviews).Return(nil)
+	mockCache.On("SetReviewsList", mock.Anything, productID, 20, 0, reviews, 2).Return(nil)
 
 	handler.GetByProductID(w, req)
 
@@ -556,14 +515,14 @@ func TestReviewHandler_GetByProductID_CacheHit(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	// Cache hit scenario
-	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(reviews, nil)
-	mockRepo.On("CountByProductID", mock.Anything, productID).Return(1, nil)
+	// Cache hit scenario - count is included in cache
+	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(reviews, 1, nil)
 
 	handler.GetByProductID(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	mockRepo.AssertExpectations(t)
+	mockRepo.AssertNotCalled(t, "GetByProductID")
+	mockRepo.AssertNotCalled(t, "CountByProductID")
 	mockCache.AssertExpectations(t)
 
 	var response map[string]any
@@ -613,10 +572,10 @@ func TestReviewHandler_GetByProductID_WithPagination(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockCache.On("GetReviewsList", mock.Anything, productID, 10, 20).Return(nil, fmt.Errorf("cache miss"))
+	mockCache.On("GetReviewsList", mock.Anything, productID, 10, 20).Return(nil, 0, fmt.Errorf("cache miss"))
 	mockRepo.On("GetByProductID", mock.Anything, productID, 10, 20).Return(reviews, nil)
 	mockRepo.On("CountByProductID", mock.Anything, productID).Return(100, nil)
-	mockCache.On("SetReviewsList", mock.Anything, productID, 10, 20, reviews).Return(nil)
+	mockCache.On("SetReviewsList", mock.Anything, productID, 10, 20, reviews, 100).Return(nil)
 
 	handler.GetByProductID(w, req)
 
@@ -648,7 +607,7 @@ func TestReviewHandler_GetByProductID_RepositoryError(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(nil, fmt.Errorf("cache miss"))
+	mockCache.On("GetReviewsList", mock.Anything, productID, 20, 0).Return(nil, 0, fmt.Errorf("cache miss"))
 	mockRepo.On("GetByProductID", mock.Anything, productID, 20, 0).Return(nil, fmt.Errorf("database error"))
 
 	handler.GetByProductID(w, req)

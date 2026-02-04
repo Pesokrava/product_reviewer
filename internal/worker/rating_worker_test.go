@@ -16,8 +16,23 @@ import (
 )
 
 func setupTestWorker(t *testing.T) (*RatingWorker, sqlmock.Sqlmock, *sqlx.DB) {
-	db, mock, err := sqlmock.New()
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
+
+	sqlxDB := sqlx.NewDb(db, "sqlmock")
+	log := logger.New("test")
+	calculator := NewCalculator(sqlxDB, log)
+	worker := NewRatingWorker(calculator, log)
+
+	return worker, mock, sqlxDB
+}
+
+func setupTestWorkerUnordered(t *testing.T) (*RatingWorker, sqlmock.Sqlmock, *sqlx.DB) {
+	db, mock, err := sqlmock.New(
+		sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp),
+	)
+	require.NoError(t, err)
+	mock.MatchExpectationsInOrder(false)
 
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	log := logger.New("test")
@@ -150,7 +165,7 @@ func TestRatingWorker_EventOrdering_IgnoreStaleEvents(t *testing.T) {
 }
 
 func TestRatingWorker_MultipleProducts(t *testing.T) {
-	worker, mock, sqlxDB := setupTestWorker(t)
+	worker, mock, sqlxDB := setupTestWorkerUnordered(t)
 	defer sqlxDB.Close()
 
 	product1 := uuid.New()
@@ -183,8 +198,8 @@ func TestRatingWorker_MultipleProducts(t *testing.T) {
 	// Should have 3 pending updates
 	assert.Equal(t, 3, worker.GetPendingCount())
 
-	// Wait for processing
-	time.Sleep(debounceWindow + 300*time.Millisecond)
+	// Wait for processing (debounce + time for all 3 concurrent updates to complete)
+	time.Sleep(debounceWindow + 500*time.Millisecond)
 
 	// Verify all updates executed
 	assert.Equal(t, 0, worker.GetPendingCount())
@@ -319,8 +334,9 @@ func TestRatingWorker_RetryLogic(t *testing.T) {
 	err := worker.HandleEvent(eventData)
 	assert.NoError(t, err)
 
-	// Wait for processing with retries (debounce + 3 attempts with backoff)
-	time.Sleep(debounceWindow + 1*time.Second)
+	// Wait for processing with retries (debounce + 3 attempts with backoff: 1s + 2s)
+	// Total: 1s (debounce) + 1s (retry 1) + 2s (retry 2) + buffer
+	time.Sleep(debounceWindow + 5*time.Second)
 
 	// Verify all retries executed
 	assert.NoError(t, mock.ExpectationsWereMet())

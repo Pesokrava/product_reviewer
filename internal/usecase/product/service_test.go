@@ -53,10 +53,57 @@ func (m *MockProductRepository) Count(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
+// MockReviewRepository is a mock implementation of domain.ReviewRepository
+type MockReviewRepository struct {
+	mock.Mock
+}
+
+func (m *MockReviewRepository) Create(ctx context.Context, review *domain.Review) error {
+	args := m.Called(ctx, review)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Review), args.Error(1)
+}
+
+func (m *MockReviewRepository) GetByProductID(ctx context.Context, productID uuid.UUID, limit, offset int) ([]*domain.Review, error) {
+	args := m.Called(ctx, productID, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Review), args.Error(1)
+}
+
+func (m *MockReviewRepository) Update(ctx context.Context, review *domain.Review) error {
+	args := m.Called(ctx, review)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) DeleteByProductID(ctx context.Context, productID uuid.UUID) error {
+	args := m.Called(ctx, productID)
+	return args.Error(0)
+}
+
+func (m *MockReviewRepository) CountByProductID(ctx context.Context, productID uuid.UUID) (int, error) {
+	args := m.Called(ctx, productID)
+	return args.Int(0), args.Error(1)
+}
+
 func TestService_Create_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := NewService(mockRepo, log)
+	service := NewService(mockRepo, mockReviewRepo, log)
 
 	product := &domain.Product{
 		Name:  "Test Product",
@@ -73,8 +120,9 @@ func TestService_Create_Success(t *testing.T) {
 
 func TestService_Create_InvalidInput(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := NewService(mockRepo, log)
+	service := NewService(mockRepo, mockReviewRepo, log)
 
 	product := &domain.Product{
 		Name:  "", // Invalid: empty name
@@ -90,8 +138,9 @@ func TestService_Create_InvalidInput(t *testing.T) {
 
 func TestService_GetByID_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := NewService(mockRepo, log)
+	service := NewService(mockRepo, mockReviewRepo, log)
 
 	productID := uuid.New()
 	expectedProduct := &domain.Product{
@@ -111,8 +160,9 @@ func TestService_GetByID_Success(t *testing.T) {
 
 func TestService_GetByID_NotFound(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := NewService(mockRepo, log)
+	service := NewService(mockRepo, mockReviewRepo, log)
 
 	productID := uuid.New()
 
@@ -128,8 +178,9 @@ func TestService_GetByID_NotFound(t *testing.T) {
 
 func TestService_List_Success(t *testing.T) {
 	mockRepo := new(MockProductRepository)
+	mockReviewRepo := new(MockReviewRepository)
 	log := logger.New("test")
-	service := NewService(mockRepo, log)
+	service := NewService(mockRepo, mockReviewRepo, log)
 
 	expectedProducts := []*domain.Product{
 		{ID: uuid.New(), Name: "Product 1", Price: 99.99},

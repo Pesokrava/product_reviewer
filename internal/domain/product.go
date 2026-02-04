@@ -11,7 +11,7 @@ import (
 type Product struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
 	Name          string     `json:"name" db:"name" validate:"required,min=1,max=255"`
-	Description   *string    `json:"description,omitempty" db:"description"`
+	Description   *string    `json:"description,omitempty" db:"description" validate:"omitempty,max=2000"`
 	Price         float64    `json:"price" db:"price" validate:"required,gte=0"`
 	AverageRating float64    `json:"average_rating" db:"average_rating"`
 	Version       int        `json:"version" db:"version"`
