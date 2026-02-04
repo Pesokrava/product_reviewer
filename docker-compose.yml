@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: product_reviews
     ports:
-      - "${DB_PORT_EXTERNAL:-5433}:5432"
+      - "${DB_PORT_EXTERNAL:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

@@ -21,7 +21,7 @@ make dev                      # Start development server
                              # - If Air+Delve installed: hot reload + debug on :2345
                              # - If not installed: runs normally (fallback mode)
                              # API at http://localhost:8080
-                             # Swagger at http://localhost:8080/swagger/index.html
+                             # Swagger at http://localhost:8080/docs
 
 make dev-down                 # Stop infrastructure services
 ```
@@ -37,9 +37,10 @@ Note: `make dev` automatically handles infrastructure setup and chooses the best
 
 ### Building
 ```bash
-make build                    # Build both API and notifier services to bin/
+make build                    # Build API, notifier, and rating-worker services to bin/
 go build -o bin/api cmd/api/main.go
 go build -o bin/notifier cmd/notifier/main.go
+go build -o bin/rating-worker cmd/rating-worker/main.go
 ```
 
 ### Testing
@@ -59,16 +60,17 @@ make lint                     # Run golangci-lint with .golangci.yml config
 ```bash
 make swagger                  # Generate Swagger docs from annotations
 # Docs generated to docs/ directory
-# Access at http://localhost:8080/swagger/index.html when API is running
+# Access at http://localhost:8080/docs when API is running
 ```
 
 ### Docker Operations
 ```bash
-make docker-up               # Start all services (postgres, redis, nats, api, notifier)
+make docker-up               # Start all services (postgres, redis, nats, api, notifier, rating-worker)
 make docker-down             # Stop all services
 make docker-build            # Build Docker images
 docker-compose logs -f api   # View API logs
 docker-compose logs -f notifier  # View notifier logs
+docker-compose logs -f rating-worker  # View rating-worker logs
 ```
 
 ### Database Migrations
@@ -141,9 +143,15 @@ This codebase follows **Clean Architecture** with strict dependency rules:
 
 4. **Delivery Layer** (`internal/delivery/`):
    - HTTP handlers (`http/handler/`): Product and Review endpoints
-   - Middleware (`http/middleware/`): Logger, Recovery, CORS
-   - Event system (`events/`): NATS publisher/consumer
+   - Middleware (`http/middleware/`): Logger, Recovery, Timeout (CORS via go-chi/cors)
+   - Event system (`events/`): NATS JetStream publisher and stream configuration
    - Request/response helpers for consistent API formatting
+
+5. **Worker Layer** (`internal/worker/`):
+   - Rating calculator: Computes average ratings from review data
+   - Rating worker: Consumes NATS events and updates product ratings asynchronously
+   - Stream configuration: Wraps JetStream setup for worker usage
+   - Handles: Debouncing, exponential backoff, idempotent recalculation
 
 ### Critical Implementation Details
 
@@ -161,13 +169,14 @@ The system uses a **two-layer approach** to ensure average_rating is eventually 
 2. **Layer 2: Asynchronous Rating Worker (Source of Truth)**:
    - Review service publishes events to NATS JetStream (`reviews.events` subject)
    - JetStream provides persistence (survives restarts) and automatic redelivery
-   - Rating worker (`cmd/rating-worker/main.go`) subscribes to durable consumer
+   - Rating worker (`cmd/rating-worker/main.go` + `internal/worker/`) subscribes to durable consumer
    - Worker debounces updates (1-second window) to batch multiple events for the same product
-   - Exponential backoff retry (3 attempts: 1s, 2s, 4s) handles transient database failures
+   - Exponential backoff retry: 3 attempts total (immediate, then 1s wait, then 2s wait)
    - After 3 failed attempts, message is discarded (next review event will recalculate)
    - Worker executes SQL: `UPDATE products SET average_rating = ..., version = version + 1 WHERE id = ?`
    - PostgreSQL MVCC handles concurrent access safely without application-level locks
    - Rating calculation is idempotent and self-correcting (full recalculation from DB state)
+   - Concurrency limited to 10 simultaneous calculations to prevent DB overload
 
 **IMPORTANT**: When adding new review operations, always:
 - Call `InvalidateAllProductCache` after DB write (log warning if it fails, don't fail the operation)
@@ -185,7 +194,7 @@ Key: "product:{id}:rating"
 TTL: 5 minutes (CACHE_TTL_PRODUCT_RATING)
 
 // Reviews list cache
-Key: "product:{id}:reviews:page:{page}"
+Key: "product:{id}:reviews:limit:{limit}:offset:{offset}"
 TTL: 2 minutes (CACHE_TTL_REVIEWS_LIST)
 ```
 
@@ -196,13 +205,14 @@ TTL: 2 minutes (CACHE_TTL_REVIEWS_LIST)
 
 **Write flow**:
 1. Update database
-2. Invalidate ALL related cache keys (use pattern matching for paginated lists)
+2. Invalidate ALL related cache keys (uses SET-based tracking for paginated lists)
 3. Publish event to NATS
 4. Return response
 
 Cache invalidation happens in `internal/repository/cache/redis.go`:
 - `InvalidateProductRating()`: Clear single product rating
-- `InvalidateAllProductCache()`: Clear rating + all review pages using Redis SCAN
+- `InvalidateReviewsList()`: Clear all review pages using SET-based tracking (SMembers + Unlink)
+- `InvalidateAllProductCache()`: Clear rating + all review pages atomically
 
 #### Event System
 
@@ -216,10 +226,11 @@ NATS JetStream for durable, reliable event delivery:
 
 **JetStream Features:**
 - **Persistence**: Messages survive worker restarts (file storage)
-- **Redelivery**: Automatic retry with exponential backoff (1s, 2s, 4s)
+- **Redelivery**: JetStream redelivers unacked messages with backoff (1s, 2s, 4s)
 - **Durability**: Pull consumer with durable name `rating-worker`
 - **Acknowledgment**: Explicit ack required (AckExplicitPolicy)
-- **MaxDeliver**: 3 attempts then discard (acceptable due to idempotent calculation)
+- **MaxDeliver**: 3 JetStream delivery attempts, then discard
+- **Worker Retries**: Each delivery attempt has internal worker retries (immediate, 1s, 2s)
 
 Events are published with acknowledgment in `internal/usecase/review/service.go`:
 ```go
@@ -326,7 +337,7 @@ If you find yourself writing a comment that describes HOW the code works, consid
 - When modifying endpoint behavior: Update the annotations (parameters, responses, descriptions)
 - When changing request/response models: Update the struct field tags and annotations
 - After any API changes: Run `make swagger` to regenerate docs
-- The Swagger UI at http://localhost:8080/swagger/index.html is the source of truth for API consumers
+- The Swagger UI at http://localhost:8080/docs is the source of truth for API consumers
 
 Annotations format:
 ```go
@@ -357,7 +368,7 @@ Annotations format:
 - Annotations are in handler files (`internal/delivery/http/handler/*.go`)
 - Main API metadata in `cmd/api/main.go`
 - Generate docs: `make swagger`
-- Access UI: http://localhost:8080/swagger/index.html
+- Access UI: http://localhost:8080/docs
 - **Important**: See "API Documentation" rule in Code Standards section - all API changes must update Swagger docs
 
 ## Common Gotchas
@@ -382,12 +393,17 @@ docker-compose exec redis redis-cli
 > KEYS product:*
 > GET product:{uuid}:rating
 > TTL product:{uuid}:rating
+> GET product:{uuid}:reviews:limit:20:offset:0
+> SMEMBERS product:{uuid}:cache_keys  # List all cached review pages for a product
 ```
 
 ### View NATS Events
 ```bash
 docker-compose logs -f notifier
 # Shows all published review events in real-time
+
+docker-compose logs -f rating-worker
+# Shows rating calculation processing and retries
 ```
 
 ### View Database State
