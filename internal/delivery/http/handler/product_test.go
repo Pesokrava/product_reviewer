@@ -132,7 +132,8 @@ func TestProductHandler_Create_Success(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 
 	var response map[string]any
-	json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Contains(t, response, "data")
 }
 
@@ -150,7 +151,8 @@ func TestProductHandler_Create_InvalidJSON(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	var response map[string]string
-	json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Contains(t, response["error"], "Invalid request body")
 }
 
@@ -230,7 +232,8 @@ func TestProductHandler_GetByID_Success(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 
 	var response map[string]any
-	json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Contains(t, response, "data")
 }
 
@@ -252,7 +255,8 @@ func TestProductHandler_GetByID_InvalidUUID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	var response map[string]string
-	json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Contains(t, response["error"], "Invalid product ID")
 }
 
@@ -312,7 +316,8 @@ func TestProductHandler_List_Success(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 
 	var response map[string]any
-	json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Contains(t, response, "data")
 	assert.Contains(t, response, "pagination")
 }
@@ -337,7 +342,8 @@ func TestProductHandler_List_WithPagination(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 
 	var response map[string]any
-	json.Unmarshal(w.Body.Bytes(), &response)
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	pagination := response["pagination"].(map[string]any)
 	assert.Equal(t, float64(10), pagination["limit"])
 	assert.Equal(t, float64(20), pagination["offset"])

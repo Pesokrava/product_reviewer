@@ -15,7 +15,9 @@ const maxRequestBodySize = 1 << 20 // 1MB
 
 // DecodeJSON decodes JSON request body into the provided struct with size limit
 func DecodeJSON(r *http.Request, v any) error {
-	defer r.Body.Close()
+	defer func() {
+		_ = r.Body.Close()
+	}()
 
 	// Limit request body size to prevent DoS attacks
 	limitedReader := io.LimitReader(r.Body, maxRequestBodySize)

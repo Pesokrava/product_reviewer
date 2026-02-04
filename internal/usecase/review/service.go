@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -94,7 +95,7 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Review, error) {
 	review, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		if err == domain.ErrNotFound {
+		if errors.Is(err, domain.ErrNotFound) {
 			s.logger.Debugf("Review not found: %s", id)
 		} else {
 			s.logger.Error("Failed to get review", err)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -34,7 +35,11 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("Failed to connect to database", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			appLogger.Error("Failed to close database connection", err)
+		}
+	}()
 
 	appLogger.Info("Connected to database")
 
@@ -97,7 +102,7 @@ func main() {
 			// Fetch messages in batches (up to 10 at a time)
 			msgs, err := sub.Fetch(10, nats.MaxWait(5*time.Second))
 			if err != nil {
-				if err == nats.ErrTimeout {
+				if errors.Is(err, nats.ErrTimeout) {
 					// No messages available, continue polling
 					continue
 				}

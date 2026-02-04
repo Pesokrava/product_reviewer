@@ -40,5 +40,3 @@ Thumbs.db
 # Application
 *.log
 tmp/
-.tldr/
-.tldrignore

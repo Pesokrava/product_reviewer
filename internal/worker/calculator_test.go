@@ -17,7 +17,9 @@ func TestCalculator_CalculateAndUpdate_Success(t *testing.T) {
 	// Setup
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	log := logger.New("test")
@@ -43,7 +45,9 @@ func TestCalculator_CalculateAndUpdate_ProductNotFound(t *testing.T) {
 	// Setup
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	log := logger.New("test")
@@ -69,7 +73,9 @@ func TestCalculator_CalculateAndUpdate_ContextTimeout(t *testing.T) {
 	// Setup
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	log := logger.New("test")
@@ -100,7 +106,9 @@ func TestCalculator_GetCurrentRating_Success(t *testing.T) {
 	// Setup
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	log := logger.New("test")
@@ -130,7 +138,9 @@ func TestCalculator_GetCurrentRating_NullRating(t *testing.T) {
 	// Setup
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 	log := logger.New("test")

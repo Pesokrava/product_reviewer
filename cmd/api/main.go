@@ -61,7 +61,11 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("Failed to connect to database", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			appLogger.Error("Failed to close database connection", err)
+		}
+	}()
 	appLogger.Info("Connected to PostgreSQL successfully")
 
 	appLogger.Info("Running database migrations...")
@@ -75,7 +79,11 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("Failed to connect to Redis", err)
 	}
-	defer redisClient.Close()
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			appLogger.Error("Failed to close Redis connection", err)
+		}
+	}()
 	appLogger.Info("Connected to Redis successfully")
 
 	appLogger.Info("Connecting to NATS...")

@@ -16,6 +16,7 @@ func RunMigrations(db *sqlx.DB) error {
 	}
 
 	for _, path := range migrations {
+		// #nosec G304 -- Migration paths are hardcoded above, not user input
 		sql, err := os.ReadFile(path)
 		if err != nil {
 			absPath, _ := filepath.Abs(path)

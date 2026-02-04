@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -45,7 +46,7 @@ func (c *RedisCache) GetProductRating(ctx context.Context, productID uuid.UUID) 
 	key := c.productRatingKey(productID)
 	val, err := c.client.Get(ctx, key).Float64()
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return 0, domain.ErrNotFound
 		}
 		return 0, err
@@ -80,7 +81,7 @@ func (c *RedisCache) GetReviewsList(ctx context.Context, productID uuid.UUID, li
 	key := c.reviewsListKey(productID, limit, offset)
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return nil, 0, domain.ErrNotFound
 		}
 		return nil, 0, err
@@ -122,7 +123,7 @@ func (c *RedisCache) InvalidateReviewsList(ctx context.Context, productID uuid.U
 	trackingKey := c.productCacheKeysSet(productID)
 
 	keys, err := c.client.SMembers(ctx, trackingKey).Result()
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return err
 	}
 
@@ -136,11 +137,11 @@ func (c *RedisCache) InvalidateReviewsList(ctx context.Context, productID uuid.U
 
 // InvalidateAllProductCache invalidates all cache entries for a product
 func (c *RedisCache) InvalidateAllProductCache(ctx context.Context, productID uuid.UUID) error {
-	if err := c.InvalidateProductRating(ctx, productID); err != nil && err != redis.Nil {
+	if err := c.InvalidateProductRating(ctx, productID); err != nil && !errors.Is(err, redis.Nil) {
 		return err
 	}
 
-	if err := c.InvalidateReviewsList(ctx, productID); err != nil && err != redis.Nil {
+	if err := c.InvalidateReviewsList(ctx, productID); err != nil && !errors.Is(err, redis.Nil) {
 		return err
 	}
 

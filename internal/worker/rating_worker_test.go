@@ -44,7 +44,9 @@ func setupTestWorkerUnordered(t *testing.T) (*RatingWorker, sqlmock.Sqlmock, *sq
 
 func TestRatingWorker_HandleEvent_Success(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 	event := ReviewEvent{
@@ -78,7 +80,9 @@ func TestRatingWorker_HandleEvent_Success(t *testing.T) {
 
 func TestRatingWorker_HandleEvent_InvalidJSON(t *testing.T) {
 	worker, _, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	invalidJSON := []byte(`{invalid json}`)
 
@@ -89,7 +93,9 @@ func TestRatingWorker_HandleEvent_InvalidJSON(t *testing.T) {
 
 func TestRatingWorker_Debouncing_MultipleEvents(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 
@@ -124,7 +130,9 @@ func TestRatingWorker_Debouncing_MultipleEvents(t *testing.T) {
 
 func TestRatingWorker_EventOrdering_IgnoreStaleEvents(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 	now := time.Now()
@@ -166,7 +174,9 @@ func TestRatingWorker_EventOrdering_IgnoreStaleEvents(t *testing.T) {
 
 func TestRatingWorker_MultipleProducts(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorkerUnordered(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	product1 := uuid.New()
 	product2 := uuid.New()
@@ -208,7 +218,9 @@ func TestRatingWorker_MultipleProducts(t *testing.T) {
 
 func TestRatingWorker_GracefulShutdown(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 
@@ -246,7 +258,9 @@ func TestRatingWorker_GracefulShutdown(t *testing.T) {
 
 func TestRatingWorker_ShutdownCancelsPendingUpdates(t *testing.T) {
 	worker, _, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 
@@ -276,7 +290,9 @@ func TestRatingWorker_ShutdownCancelsPendingUpdates(t *testing.T) {
 
 func TestRatingWorker_ShutdownCancelsInFlightOperations(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 
@@ -308,7 +324,9 @@ func TestRatingWorker_ShutdownCancelsInFlightOperations(t *testing.T) {
 
 func TestRatingWorker_RetryLogic(t *testing.T) {
 	worker, mock, sqlxDB := setupTestWorker(t)
-	defer sqlxDB.Close()
+	defer func() {
+		_ = sqlxDB.Close()
+	}()
 
 	productID := uuid.New()
 

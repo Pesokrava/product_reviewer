@@ -1,6 +1,7 @@
 package events
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -50,7 +51,7 @@ func NewStreamConfig(js nats.JetStreamContext, log *logger.Logger) *StreamConfig
 func (s *StreamConfig) EnsureStream() error {
 	stream, err := s.js.StreamInfo(StreamName)
 
-	if err == nats.ErrStreamNotFound {
+	if errors.Is(err, nats.ErrStreamNotFound) {
 		// Create new stream
 		s.logger.WithFields(map[string]interface{}{
 			"stream":   StreamName,
@@ -104,7 +105,7 @@ func (s *StreamConfig) EnsureStream() error {
 func (s *StreamConfig) EnsureConsumer() error {
 	consumerInfo, err := s.js.ConsumerInfo(StreamName, ConsumerName)
 
-	if err == nats.ErrConsumerNotFound {
+	if errors.Is(err, nats.ErrConsumerNotFound) {
 		// Create new consumer
 		s.logger.WithFields(map[string]interface{}{
 			"stream":   StreamName,

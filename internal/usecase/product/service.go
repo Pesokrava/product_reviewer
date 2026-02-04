@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -53,7 +54,7 @@ func (s *Service) Create(ctx context.Context, product *domain.Product) error {
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
 	product, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		if err == domain.ErrNotFound {
+		if errors.Is(err, domain.ErrNotFound) {
 			s.logger.Debugf("Product not found: %s", id)
 		} else {
 			s.logger.Error("Failed to get product", err)
