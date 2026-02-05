@@ -143,7 +143,7 @@ This codebase follows **Clean Architecture** with strict dependency rules:
 
 4. **Delivery Layer** (`internal/delivery/`):
    - HTTP handlers (`http/handler/`): Product and Review endpoints
-   - Middleware (`http/middleware/`): Logger, Recovery, Timeout (CORS via go-chi/cors)
+   - Middleware (`http/middleware/`): Logger, Recovery, Timeout
    - Event system (`events/`): NATS JetStream publisher and stream configuration
    - Request/response helpers for consistent API formatting
 

@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -24,7 +23,6 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
-	AllowedOrigins  []string
 }
 
 // DatabaseConfig holds PostgreSQL configuration
@@ -69,7 +67,6 @@ func Load() (*Config, error) {
 	viper.SetDefault("SERVER_READ_TIMEOUT", "10s")
 	viper.SetDefault("SERVER_WRITE_TIMEOUT", "10s")
 	viper.SetDefault("SERVER_SHUTDOWN_TIMEOUT", "30s")
-	viper.SetDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080")
 
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
@@ -121,12 +118,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid CACHE_TTL_REVIEWS_LIST: %w", err)
 	}
 
-	allowedOriginsStr := viper.GetString("CORS_ALLOWED_ORIGINS")
-	allowedOrigins := strings.Split(allowedOriginsStr, ",")
-	for i := range allowedOrigins {
-		allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
-	}
-
 	config := &Config{
 		Env: viper.GetString("ENV"),
 		Server: ServerConfig{
@@ -134,7 +125,6 @@ func Load() (*Config, error) {
 			ReadTimeout:     readTimeout,
 			WriteTimeout:    writeTimeout,
 			ShutdownTimeout: shutdownTimeout,
-			AllowedOrigins:  allowedOrigins,
 		},
 		Database: DatabaseConfig{
 			Host:            viper.GetString("DB_HOST"),

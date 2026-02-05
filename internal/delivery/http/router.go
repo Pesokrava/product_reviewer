@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/Pesokrava/product_reviewer/internal/config"
@@ -45,14 +44,6 @@ func (rt *Router) Setup() http.Handler {
 	r.Use(middleware.Recovery(rt.logger))
 	r.Use(middleware.Logger(rt.logger))
 	r.Use(middleware.Timeout(30 * time.Second))
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   rt.cfg.Server.AllowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
 
 	r.Get("/health", rt.healthCheck)
 	// Redirect /docs to /docs/index.html to ensure the Swagger UI is served correctly
