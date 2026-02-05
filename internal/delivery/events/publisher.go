@@ -31,7 +31,7 @@ func NewPublisher(cfg *config.Config, log *logger.Logger) (*Publisher, error) {
 		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
 	}
 
-	log.WithFields(map[string]interface{}{
+	log.WithFields(map[string]any{
 		"url": cfg.NATS.URL,
 	}).Info("Connected to NATS JetStream")
 
@@ -48,14 +48,14 @@ func (p *Publisher) Publish(ctx context.Context, subject string, data []byte) er
 	// Publish with acknowledgment - ensures message is stored before returning
 	pubAck, err := p.js.Publish(subject, data, nats.Context(ctx))
 	if err != nil {
-		p.logger.WithFields(map[string]interface{}{
+		p.logger.WithFields(map[string]any{
 			"subject": subject,
 			"error":   err.Error(),
 		}).Error("Failed to publish message to JetStream", err)
 		return fmt.Errorf("failed to publish to JetStream: %w", err)
 	}
 
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"subject":  subject,
 		"stream":   pubAck.Stream,
 		"sequence": pubAck.Sequence,

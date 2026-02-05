@@ -37,6 +37,10 @@ type ProductRepository interface {
 	// Delete soft-deletes a product
 	Delete(ctx context.Context, id uuid.UUID) error
 
+	// DeleteWithReviews soft-deletes a product and all its reviews in a single transaction
+	// Uses the same timestamp for both operations to ensure consistency
+	DeleteWithReviews(ctx context.Context, id uuid.UUID) error
+
 	// Count returns the total number of products (excludes soft-deleted)
 	Count(ctx context.Context) (int, error)
 }

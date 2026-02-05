@@ -111,18 +111,11 @@ func (s *Service) Update(ctx context.Context, product *domain.Product) error {
 
 // Delete soft-deletes a product and cascades to all its reviews
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	// Cascade soft-delete all reviews for this product first
-	if err := s.reviewRepo.DeleteByProductID(ctx, id); err != nil {
+	if err := s.repo.DeleteWithReviews(ctx, id); err != nil {
 		s.logger.WithFields(map[string]any{
 			"product_id": id,
 			"error":      err.Error(),
-		}).Error("Failed to cascade delete reviews", err)
-		return err
-	}
-
-	// Then soft-delete the product
-	if err := s.repo.Delete(ctx, id); err != nil {
-		s.logger.Error("Failed to delete product", err)
+		}).Error("Failed to delete product and reviews", err)
 		return err
 	}
 

@@ -43,7 +43,6 @@ func (r *ProductRepository) Create(ctx context.Context, product *domain.Product)
 		&product.CreatedAt,
 		&product.UpdatedAt,
 	)
-
 	if err != nil {
 		return err
 	}
@@ -112,7 +111,6 @@ func (r *ProductRepository) Update(ctx context.Context, product *domain.Product)
 		product.ID,
 		oldVersion,
 	).Scan(&product.Version, &product.UpdatedAt)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.ErrConflict
@@ -146,6 +144,51 @@ func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+// DeleteWithReviews soft-deletes a product and all its reviews in a single transaction
+// Uses the same timestamp for both operations to ensure consistency
+func (r *ProductRepository) DeleteWithReviews(ctx context.Context, id uuid.UUID) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	deletedAt := time.Now()
+
+	// Delete all reviews for the product first
+	reviewQuery := `
+		UPDATE reviews
+		SET deleted_at = $1
+		WHERE product_id = $2 AND deleted_at IS NULL
+	`
+	_, err = tx.ExecContext(ctx, reviewQuery, deletedAt, id)
+	if err != nil {
+		return err
+	}
+
+	// Delete the product
+	productQuery := `
+		UPDATE products
+		SET deleted_at = $1
+		WHERE id = $2 AND deleted_at IS NULL
+	`
+	result, err := tx.ExecContext(ctx, productQuery, deletedAt, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+
+	return tx.Commit()
 }
 
 // Count returns the total number of products

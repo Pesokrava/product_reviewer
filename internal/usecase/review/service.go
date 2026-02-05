@@ -80,7 +80,7 @@ func (s *Service) Create(ctx context.Context, review *domain.Review) error {
 		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
 	}
 
-	s.publishEvent(ctx, "review.created", review)
+	s.publishEvent("review.created", review)
 
 	s.logger.WithFields(map[string]any{
 		"review_id":  review.ID,
@@ -175,7 +175,7 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
 	}
 
-	s.publishEvent(ctx, "review.updated", review)
+	s.publishEvent("review.updated", review)
 
 	s.logger.WithFields(map[string]any{
 		"review_id":  review.ID,
@@ -186,7 +186,6 @@ func (s *Service) Update(ctx context.Context, review *domain.Review) error {
 	return nil
 }
 
-// Delete soft-deletes a review
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	// Product ID is needed for cache invalidation but only stored in review record
 	review, err := s.repo.GetByID(ctx, id)
@@ -209,7 +208,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		}).Warn("Failed to invalidate cache, may serve stale data temporarily")
 	}
 
-	s.publishEvent(ctx, "review.deleted", review)
+	s.publishEvent("review.deleted", review)
 
 	s.logger.WithFields(map[string]any{
 		"review_id":  id,
@@ -220,7 +219,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // publishEvent publishes a review event (non-blocking)
-func (s *Service) publishEvent(ctx context.Context, eventType string, review *domain.Review) {
+func (s *Service) publishEvent(eventType string, review *domain.Review) {
 	event := ReviewEvent{
 		EventType: eventType,
 		Timestamp: time.Now(),

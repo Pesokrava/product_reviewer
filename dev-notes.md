@@ -54,10 +54,11 @@ spec:
 **Benefits**:
 - Explicit control over when migrations run
 - No race conditions (single job execution)
-- Application pods start immediately without waiting for migrations
 - Failed migrations don't block app deployment
 - GitOps-friendly (ArgoCD/Flux can manage migration jobs)
 - Audit trail via Kubernetes Job history
+
+**Startup probe**: Application pods use a startup probe that verifies the latest migrations are applied before accepting traffic. If migrations are pending, the pod fails the probe and won't start. This ensures zero-downtime deployments - migration Job completes first, then pods start and pass their probes.
 
 **Development**: Use `make migrate-up` (docker-compose exec) for local development.
 

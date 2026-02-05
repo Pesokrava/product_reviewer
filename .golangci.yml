@@ -28,21 +28,3 @@ linters:
     gosec:
       excludes:
         - G104  # Duplicate of errcheck
-    revive:
-      rules:
-        # Explicitly disabled (overlap with gopls staticcheck)
-        - name: package-comments
-          disabled: true
-        - name: exported
-          disabled: true
-
-        # Unique revive rules (no overlap with gopls staticcheck)
-        - name: context-as-argument
-        - name: context-keys-type
-        - name: indent-error-flow
-        - name: early-return
-        - name: defer
-        - name: unchecked-type-assertion
-        - name: waitgroup-by-value
-        - name: modifies-value-receiver
-

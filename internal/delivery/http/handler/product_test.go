@@ -55,6 +55,11 @@ func (m *MockProductRepository) Delete(ctx context.Context, id uuid.UUID) error 
 	return args.Error(0)
 }
 
+func (m *MockProductRepository) DeleteWithReviews(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 func (m *MockProductRepository) Count(ctx context.Context) (int, error) {
 	args := m.Called(ctx)
 	return args.Int(0), args.Error(1)

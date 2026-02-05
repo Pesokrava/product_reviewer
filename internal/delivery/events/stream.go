@@ -42,6 +42,21 @@ func NewStreamConfig(js nats.JetStreamContext, log *logger.Logger) *StreamConfig
 	}
 }
 
+// generateExponentialBackoff creates a backoff schedule for NATS redeliveries
+// Pattern: 1s, 2s, 4s, 8s, ... (2^n seconds)
+// MaxDeliver N requires N-1 backoff durations (first delivery is immediate)
+func generateExponentialBackoff(maxDeliveryAttempts int) []time.Duration {
+	if maxDeliveryAttempts <= 1 {
+		return nil
+	}
+
+	backoff := make([]time.Duration, maxDeliveryAttempts-1)
+	for i := range backoff {
+		backoff[i] = time.Duration(1<<i) * time.Second
+	}
+	return backoff
+}
+
 // EnsureStream creates or updates the JetStream stream for review events
 // Stream configuration:
 // - Retention: Work queue (messages deleted after ack or max deliver)
@@ -53,7 +68,7 @@ func (s *StreamConfig) EnsureStream() error {
 
 	if errors.Is(err, nats.ErrStreamNotFound) {
 		// Create new stream
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.WithFields(map[string]any{
 			"stream":   StreamName,
 			"subjects": StreamSubjects,
 		}).Info("Creating JetStream stream")
@@ -64,11 +79,10 @@ func (s *StreamConfig) EnsureStream() error {
 			Retention:   nats.WorkQueuePolicy, // Messages deleted after ack
 			Storage:     nats.FileStorage,     // Persisted to disk
 			Replicas:    1,
-			MaxAge:      24 * time.Hour,   // Keep messages for 24 hours max
-			Discard:     nats.DiscardOld,  // Discard old messages when limits reached
+			MaxAge:      24 * time.Hour,  // Keep messages for 24 hours max
+			Discard:     nats.DiscardOld, // Discard old messages when limits reached
 			Description: "Review events stream for rating calculation",
 		})
-
 		if err != nil {
 			return fmt.Errorf("failed to create stream: %w", err)
 		}
@@ -82,7 +96,7 @@ func (s *StreamConfig) EnsureStream() error {
 	}
 
 	// Stream exists
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"stream":   stream.Config.Name,
 		"messages": stream.State.Msgs,
 		"bytes":    stream.State.Bytes,
@@ -97,7 +111,7 @@ func (s *StreamConfig) EnsureStream() error {
 // - AckExplicit: Worker must explicitly acknowledge messages
 // - MaxDeliver: 3 attempts then discard (next review event will recalculate)
 // - AckWait: 30 seconds to process and ack
-// - BackOff: Exponential backoff between retries (1s, 2s, 4s)
+// - BackOff: Exponential backoff between retries (dynamically generated)
 //
 // Note: Messages that fail after 3 attempts are discarded, not sent to DLQ.
 // This is acceptable because rating calculation is idempotent and based on
@@ -107,7 +121,7 @@ func (s *StreamConfig) EnsureConsumer() error {
 
 	if errors.Is(err, nats.ErrConsumerNotFound) {
 		// Create new consumer
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.WithFields(map[string]any{
 			"stream":   StreamName,
 			"consumer": ConsumerName,
 		}).Info("Creating JetStream consumer")
@@ -118,15 +132,9 @@ func (s *StreamConfig) EnsureConsumer() error {
 			AckWait:       AckWait,
 			MaxDeliver:    MaxDeliveryAttempts,
 			FilterSubject: StreamSubjects,
-			// Exponential backoff between redeliveries: 1s, 2s, 4s
-			BackOff: []time.Duration{
-				1 * time.Second,
-				2 * time.Second,
-				4 * time.Second,
-			},
-			Description: "Rating worker consumer for processing review events",
+			BackOff:       generateExponentialBackoff(MaxDeliveryAttempts),
+			Description:   "Rating worker consumer for processing review events",
 		})
-
 		if err != nil {
 			return fmt.Errorf("failed to create consumer: %w", err)
 		}
@@ -140,7 +148,7 @@ func (s *StreamConfig) EnsureConsumer() error {
 	}
 
 	// Consumer exists
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.WithFields(map[string]any{
 		"consumer":    consumerInfo.Name,
 		"pending":     consumerInfo.NumPending,
 		"redelivered": consumerInfo.NumRedelivered,
