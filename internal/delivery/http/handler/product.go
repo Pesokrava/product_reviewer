@@ -8,6 +8,7 @@ import (
 	"github.com/Pesokrava/product_reviewer/internal/delivery/http/response"
 	"github.com/Pesokrava/product_reviewer/internal/domain"
 	"github.com/Pesokrava/product_reviewer/internal/pkg/logger"
+	pkgValidator "github.com/Pesokrava/product_reviewer/internal/pkg/validator"
 	"github.com/Pesokrava/product_reviewer/internal/usecase/product"
 )
 
@@ -37,6 +38,7 @@ type UpdateProductRequest struct {
 	Name        string  `json:"name" validate:"required,min=1,max=255"`
 	Description *string `json:"description,omitempty"`
 	Price       float64 `json:"price" validate:"required,gte=0"`
+	Version     int     `json:"version" validate:"required,gte=1"`
 }
 
 // Create handles POST /api/v1/products
@@ -124,7 +126,7 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/products/:id
 // @Summary Update a product
-// @Description Update product details (name, description, price)
+// @Description Update product details (name, description, price). Requires version field for optimistic locking. If another client modifies the product between GET and PUT, you'll receive 409 Conflict. Fetch latest version and retry.
 // @Tags Products
 // @Accept json
 // @Produce json
@@ -132,8 +134,7 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 // @Param product body UpdateProductRequest true "Updated product details"
 // @Success 200 {object} map[string]any "Product updated successfully"
 // @Failure 400 {object} map[string]string "Invalid request"
-// @Failure 404 {object} map[string]string "Product not found"
-// @Failure 409 {object} map[string]string "Conflict - product was modified"
+// @Failure 409 {object} map[string]string "Version conflict - product was modified. Fetch latest version and retry."
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /products/{id} [put]
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -149,10 +150,8 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Version field required for optimistic locking but not provided in update request
-	existingProduct, err := h.service.GetByID(r.Context(), id)
-	if err != nil {
-		h.handleError(w, err)
+	if err := pkgValidator.Get().Struct(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
@@ -161,7 +160,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
-		Version:     existingProduct.Version,
+		Version:     req.Version,
 	}
 
 	if err := h.service.Update(r.Context(), product); err != nil {
@@ -207,7 +206,7 @@ func (h *ProductHandler) handleError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrInvalidInput):
 		response.Error(w, http.StatusBadRequest, "Invalid input")
 	case errors.Is(err, domain.ErrConflict):
-		response.Error(w, http.StatusConflict, "Conflict - product was modified by another request")
+		response.Error(w, http.StatusConflict, "Version conflict - product was modified. Fetch latest version and retry.")
 	default:
 		h.logger.Error("Internal error in product handler", err)
 		response.Error(w, http.StatusInternalServerError, "Internal server error")

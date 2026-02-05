@@ -184,7 +184,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Update product details (name, description, price)",
+                "description": "Update product details (name, description, price). Requires version field for optimistic locking. If another client modifies the product between GET and PUT, you'll receive 409 Conflict. Fetch latest version and retry.",
                 "consumes": [
                     "application/json"
                 ],
@@ -230,17 +230,8 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "404": {
-                        "description": "Product not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
                     "409": {
-                        "description": "Conflict - product was modified",
+                        "description": "Version conflict - product was modified. Fetch latest version and retry.",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -625,7 +616,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "name",
-                "price"
+                "price",
+                "version"
             ],
             "properties": {
                 "description": {
@@ -639,6 +631,10 @@ const docTemplate = `{
                 "price": {
                     "type": "number",
                     "minimum": 0
+                },
+                "version": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },

@@ -374,16 +374,11 @@ func TestProductHandler_Update_Success(t *testing.T) {
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
-	existingProduct := &domain.Product{
-		ID:      productID,
-		Name:    "Old Name",
-		Price:   99.99,
-		Version: 1,
-	}
 
 	requestBody := UpdateProductRequest{
-		Name:  "Updated Name",
-		Price: 149.99,
+		Name:    "Updated Name",
+		Price:   149.99,
+		Version: 1,
 	}
 	bodyBytes, _ := json.Marshal(requestBody)
 
@@ -395,7 +390,6 @@ func TestProductHandler_Update_Success(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockRepo.On("GetByID", mock.Anything, productID).Return(existingProduct, nil)
 	mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
 		return p.ID == productID && p.Name == "Updated Name" && p.Price == 149.99 && p.Version == 1
 	})).Return(nil)
@@ -452,36 +446,6 @@ func TestProductHandler_Update_InvalidJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestProductHandler_Update_NotFound(t *testing.T) {
-	mockRepo := new(MockProductRepository)
-	log := logger.New("test")
-	service := product.NewService(mockRepo, new(MockReviewRepository), log)
-	handler := NewProductHandler(service, log)
-
-	productID := uuid.New()
-
-	requestBody := UpdateProductRequest{
-		Name:  "Updated Name",
-		Price: 149.99,
-	}
-	bodyBytes, _ := json.Marshal(requestBody)
-
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/products/"+productID.String(), bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", productID.String())
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	mockRepo.On("GetByID", mock.Anything, productID).Return(nil, domain.ErrNotFound)
-
-	handler.Update(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	mockRepo.AssertExpectations(t)
-}
-
 func TestProductHandler_Update_Conflict(t *testing.T) {
 	mockRepo := new(MockProductRepository)
 	log := logger.New("test")
@@ -489,16 +453,11 @@ func TestProductHandler_Update_Conflict(t *testing.T) {
 	handler := NewProductHandler(service, log)
 
 	productID := uuid.New()
-	existingProduct := &domain.Product{
-		ID:      productID,
-		Name:    "Old Name",
-		Price:   99.99,
-		Version: 1,
-	}
 
 	requestBody := UpdateProductRequest{
-		Name:  "Updated Name",
-		Price: 149.99,
+		Name:    "Updated Name",
+		Price:   149.99,
+		Version: 1,
 	}
 	bodyBytes, _ := json.Marshal(requestBody)
 
@@ -510,13 +469,68 @@ func TestProductHandler_Update_Conflict(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockRepo.On("GetByID", mock.Anything, productID).Return(existingProduct, nil)
 	mockRepo.On("Update", mock.Anything, mock.Anything).Return(domain.ErrConflict)
 
 	handler.Update(w, req)
 
 	assert.Equal(t, http.StatusConflict, w.Code)
 	mockRepo.AssertExpectations(t)
+}
+
+func TestProductHandler_Update_MissingVersion(t *testing.T) {
+	mockRepo := new(MockProductRepository)
+	log := logger.New("test")
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
+	handler := NewProductHandler(service, log)
+
+	productID := uuid.New()
+
+	// Request without version field
+	requestBody := map[string]any{
+		"name":  "Updated Name",
+		"price": 149.99,
+	}
+	bodyBytes, _ := json.Marshal(requestBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/products/"+productID.String(), bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", productID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	handler.Update(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestProductHandler_Update_InvalidVersion(t *testing.T) {
+	mockRepo := new(MockProductRepository)
+	log := logger.New("test")
+	service := product.NewService(mockRepo, new(MockReviewRepository), log)
+	handler := NewProductHandler(service, log)
+
+	productID := uuid.New()
+
+	requestBody := UpdateProductRequest{
+		Name:    "Updated Name",
+		Price:   149.99,
+		Version: 0, // Invalid: version must be >= 1
+	}
+	bodyBytes, _ := json.Marshal(requestBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/products/"+productID.String(), bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", productID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	handler.Update(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestProductHandler_Delete_Success(t *testing.T) {
