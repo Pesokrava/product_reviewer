@@ -58,7 +58,7 @@ func setupTestServer(t *testing.T) http.Handler {
 	)
 
 	// Setup services
-	productService := product.NewService(productRepo, log)
+	productService := product.NewService(productRepo, reviewRepo, log)
 	reviewService := review.NewService(reviewRepo, redisCache, publisher, log)
 
 	// Setup handlers
@@ -263,14 +263,18 @@ func TestProductRatingUpdate(t *testing.T) {
 	require.Equal(t, http.StatusCreated, w.Code)
 
 	// Get product and verify rating updated to 5
-	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s", productID), nil)
-	w = httptest.NewRecorder()
-	server.ServeHTTP(w, req)
+	require.Eventually(t, func() bool {
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s", productID), nil)
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, req)
 
-	err = json.NewDecoder(w.Body).Decode(&productResp)
-	require.NoError(t, err)
-	productData = productResp["data"].(map[string]any)
-	assert.Equal(t, float64(5), productData["average_rating"])
+		var productResp map[string]any
+		err = json.NewDecoder(w.Body).Decode(&productResp)
+		require.NoError(t, err)
+
+		productData = productResp["data"].(map[string]any)
+		return assert.ObjectsAreEqual(float64(5), productData["average_rating"])
+	}, 5*time.Second, 100*time.Millisecond, "Average rating should be 5 after first review")
 
 	// Create second review with rating 3
 	reviewJSON = fmt.Sprintf(`{
@@ -289,14 +293,18 @@ func TestProductRatingUpdate(t *testing.T) {
 	require.Equal(t, http.StatusCreated, w.Code)
 
 	// Get product and verify average rating is now 4.0 (5+3)/2
-	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s", productID), nil)
-	w = httptest.NewRecorder()
-	server.ServeHTTP(w, req)
+	require.Eventually(t, func() bool {
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s", productID), nil)
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, req)
 
-	err = json.NewDecoder(w.Body).Decode(&productResp)
-	require.NoError(t, err)
-	productData = productResp["data"].(map[string]any)
-	assert.Equal(t, float64(4), productData["average_rating"])
+		var productResp map[string]any
+		err = json.NewDecoder(w.Body).Decode(&productResp)
+		require.NoError(t, err)
+
+		productData = productResp["data"].(map[string]any)
+		return assert.ObjectsAreEqual(float64(4), productData["average_rating"])
+	}, 5*time.Second, 100*time.Millisecond, "Average rating should be 4 after second review")
 }
 
 func TestPaginationCaching(t *testing.T) {
@@ -518,14 +526,16 @@ func TestConcurrentReviewCreation(t *testing.T) {
 	reviews := listResp["data"].([]any)
 	assert.GreaterOrEqual(t, len(reviews), 10, "All concurrent reviews should be created")
 
-	// Verify average rating was calculated correctly
-	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s", productID), nil)
-	w = httptest.NewRecorder()
-	server.ServeHTTP(w, req)
+	// Verify average rating was calculated correctly after some time
+	require.Eventually(t, func() bool {
+		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/products/%s", productID), nil)
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, req)
 
-	err = json.NewDecoder(w.Body).Decode(&productResp)
-	require.NoError(t, err)
-	productData = productResp["data"].(map[string]any)
-	avgRating := productData["average_rating"].(float64)
-	assert.Greater(t, avgRating, float64(0), "Average rating should be calculated from concurrent reviews")
+		err = json.NewDecoder(w.Body).Decode(&productResp)
+		require.NoError(t, err)
+		productData = productResp["data"].(map[string]any)
+		avgRating := productData["average_rating"].(float64)
+		return avgRating > float64(0)
+	}, 10*time.Second, 200*time.Millisecond, "Average rating should be calculated from concurrent reviews")
 }

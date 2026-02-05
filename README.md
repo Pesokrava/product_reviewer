@@ -122,6 +122,7 @@ make build
     ```bash
     make test-integration
     ```
+    Note: The current integration test setup is primarily designed for local developer convenience. Running these tests in a CI/CD pipeline would require a more thoughtful and potentially optimized setup to manage the lifecycle of dependent Docker services.
 
 ## API Documentation
 

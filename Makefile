@@ -46,9 +46,11 @@ test:
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Tests complete! Coverage report: coverage.html"
 
-test-integration:
+test-integration: docker-up
 	@echo "Running integration tests..."
 	@go test -v -race -tags=integration ./tests/integration/...
+	@echo "Integration tests complete!"
+	$(MAKE) docker-down # Clean up after tests
 
 lint:
 	@echo "Running linter..."
