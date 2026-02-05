@@ -48,7 +48,7 @@ test:
 
 test-integration: docker-up
 	@echo "Running integration tests..."
-	@go test -v -race -tags=integration ./tests/integration/...
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; go test -v -race -tags=integration ./tests/integration/...
 	@echo "Integration tests complete!"
 	$(MAKE) docker-down # Clean up after tests
 
