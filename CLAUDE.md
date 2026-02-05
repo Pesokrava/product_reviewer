@@ -17,7 +17,7 @@ make install-dev-tools        # One-time: Install Air (hot reload) and Delve (de
 
 make dev                      # Start development server
                              # - Starts infrastructure (postgres, redis, nats)
-                             # - Creates database and runs migrations
+                             # - Creates database
                              # - If Air+Delve installed: hot reload + debug on :2345
                              # - If not installed: runs normally (fallback mode)
                              # API at http://localhost:8080
@@ -29,7 +29,8 @@ make dev-down                 # Stop infrastructure services
 ### Step-by-Step Development
 ```bash
 make dev-infra               # Start infrastructure services only
-make dev-db-setup            # Create database and run migrations
+make dev-db-setup            # Create database
+make migrate-up              # Run database migrations manually
 make build && ./bin/api      # Build and run API manually (no hot reload)
 ```
 
@@ -75,10 +76,11 @@ docker-compose logs -f rating-worker  # View rating-worker logs
 
 ### Database Migrations
 ```bash
-make migrate-up              # Apply all pending migrations
-make migrate-down            # Rollback last migration
+make migrate-up              # Apply all pending migrations (development only)
+make migrate-down            # Rollback last migration (development only)
 # Migrations are in migrations/ directory
 # Requires docker services to be running
+# Production: Run as Kubernetes Jobs (see dev-notes.md)
 ```
 
 ### Port Configuration
@@ -382,7 +384,7 @@ Annotations format:
 7. **Context propagation** - Always pass context through service layers for cancellation
 8. **UUID validation** - Use `request.GetUUIDParam()` helper to parse and validate UUIDs
 9. **Pagination** - Default limit is 20, max is 100 (enforced in handlers)
-10. **Migrations require running services** - Start docker-compose before running migrations
+10. **Migrations run manually** - Application does NOT run migrations on startup. Use `make migrate-up` for local dev, Kubernetes Jobs for production (see dev-notes.md)
 11. **Product version conflicts** - Product.version increments when rating-worker updates average_rating. Product updates can fail with ErrConflict due to concurrent rating calculation, not just concurrent product updates. This is by design - the product DID change (rating changed).
 
 ## Debugging
