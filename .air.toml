@@ -14,7 +14,7 @@ tmp_dir = "tmp"
   exclude_unchanged = false
   follow_symlink = false
   # Run with Delve debug server on port 2345
-  full_bin = "dlv exec --accept-multiclient --continue --headless --api-version=2 --listen=:2345 ./tmp/main"
+  full_bin = "dlv exec --accept-multiclient --continue --headless --api-version=2 --listen=:2349 ./tmp/main"
   include_dir = []
   include_ext = ["go", "tpl", "tmpl", "html"]
   include_file = []

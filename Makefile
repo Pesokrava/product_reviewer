@@ -126,7 +126,7 @@ dev-infra:
 	@echo "  Redis:      localhost:$$(grep REDIS_PORT_EXTERNAL .env | cut -d'=' -f2)"
 	@echo "  NATS:       localhost:$$(grep NATS_PORT_EXTERNAL .env | cut -d'=' -f2)"
 
-dev-db-setup:
+dev-db-setup: dev-infra
 	@echo "Setting up database..."
 	@echo "Checking if database exists..."
 	@if docker-compose exec -T postgres psql -U postgres -lqt | cut -d \| -f 1 | grep -qw product_reviews; then \
@@ -136,23 +136,22 @@ dev-db-setup:
 		docker-compose exec -T postgres psql -U postgres -c "CREATE DATABASE product_reviews;"; \
 		echo "Database created successfully!"; \
 	fi
-	@echo "Running migrations..."
-	@docker-compose exec -T postgres psql -U postgres -d product_reviews -f /dev/stdin < migrations/000001_create_schema.up.sql > /dev/null 2>&1 || echo "Migration already applied or failed"
+	@$(MAKE) migrate-up
 	@echo "Database setup complete!"
 	@echo "Verifying database..."
 	@docker-compose exec -T postgres psql -U postgres -d product_reviews -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
 
-dev: dev-infra dev-db-setup
+dev: dev-db-setup
 	@echo ""
 	@if command -v air > /dev/null 2>&1 && command -v dlv > /dev/null 2>&1; then \
 		echo "Starting API server with hot reload and debug server..."; \
 		echo ""; \
 		echo "  API:        http://localhost:8080"; \
 		echo "  Swagger:    http://localhost:8080/docs"; \
-		echo "  Debug Port: localhost:2345 (Delve)"; \
+		echo "  Debug Port: localhost:2349 (Delve)"; \
 		echo ""; \
 		echo "Hot reload is enabled - changes will auto-rebuild"; \
-		echo "Connect your debugger to localhost:2345"; \
+		echo "Connect your debugger to localhost:2349"; \
 		echo ""; \
 		echo "Press Ctrl+C to stop"; \
 		echo ""; \
@@ -189,6 +188,8 @@ install-dev-tools:
 	@go install github.com/air-verse/air@latest
 	@echo "Installing Delve (debugger)..."
 	@go install github.com/go-delve/delve/cmd/dlv@latest
+	@echo "Installing golang-migrate/migrate..."
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	@echo ""
 	@echo "Development tools installed successfully!"
 	@echo ""

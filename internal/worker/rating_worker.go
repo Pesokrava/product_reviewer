@@ -165,7 +165,7 @@ func (w *RatingWorker) processUpdate(productID uuid.UUID) {
 	var lastErr error
 	backoff := initialBackoff
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if attempt > 0 {
 			w.logger.WithFields(map[string]any{
 				"product_id": productID.String(),

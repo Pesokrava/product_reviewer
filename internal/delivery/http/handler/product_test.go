@@ -554,8 +554,7 @@ func TestProductHandler_Delete_Success(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockReviewRepo.On("DeleteByProductID", mock.Anything, productID).Return(nil)
-	mockRepo.On("Delete", mock.Anything, productID).Return(nil)
+	mockRepo.On("DeleteWithReviews", mock.Anything, productID).Return(nil)
 
 	handler.Delete(w, req)
 
@@ -598,7 +597,7 @@ func TestProductHandler_Delete_NotFound(t *testing.T) {
 	rctx.URLParams.Add("id", productID.String())
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	mockReviewRepo.On("DeleteByProductID", mock.Anything, productID).Return(domain.ErrNotFound)
+	mockRepo.On("DeleteWithReviews", mock.Anything, productID).Return(domain.ErrNotFound)
 
 	handler.Delete(w, req)
 
